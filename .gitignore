@@ -1,7 +1,9 @@
 # 自訂排除項目
 deploy/
+out/
 test.py
 test1.py
+*.bak
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
