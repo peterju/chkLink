@@ -1,3 +1,7 @@
+# 自訂排除項目
+deploy/
+test.py
+test1.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
