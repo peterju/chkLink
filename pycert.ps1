@@ -1,0 +1,1 @@
+signtool sign /sha1 089a46b557607ae3bf629b07906b8931088107f3 /fd SHA1 /t http://timestamp.sectigo.com /v D:\pyTest\chkLink\out\chklink.exe

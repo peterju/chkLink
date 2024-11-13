@@ -1,0 +1,88 @@
+# 定義檢查連結的層數
+layer: 3
+# 定義連線逾時秒數
+timeout: 8
+# 圖片是否必須有 alt 屬性
+alt_must: no
+# 伴隨請求的標頭
+headers:
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'
+  'Accept-Encoding': 'gzip, deflate, br'
+  'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6,zh-CN;q=0.5,la;q=0.4'
+  'Cache-Control': 'max-age=0'
+  'Connection': 'keep-alive'
+  'Cookie': '_ga_SNR7NPLEYG=GS1.1.1651249603.1.0.1651250646.0; _ga_BGEHGPV3SB=GS1.1.1707539001.1.1.1707539323.0.0.0; _gid=GA1.3.1607128698.1707801742; _ga=GA1.1.381372473.1651249604; _ga_Q0EL30K2K5=GS1.1.1707801741.1.0.1707801770.0.0.0; _ga_54MVLT2EZN=GS1.1.1707843944.5.1.1707843969.0.0.0; __RequestVerificationToken_L05ldFNlcnZpY2Vz0=MrnqY4BqFXwyAR3uGWq5prQZPEwGWyzIJgIpuGFLyP8hqJ6eLKM9EWlC8NVA4MZqmyjtxmWT-9ZtzrO04NCTXcM_njimY7J0_WFWHlyWtzE1'
+  'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"'
+  'Sec-Ch-Ua-Mobile': '?0'
+  'Sec-Platform': '"Windows"'
+  'Sec-Fetch-Dest': 'document'
+  'Sec-Fetch-Mode': 'navigate'
+  'Sec-Fetch-Site': 'none'
+  'Sec-Fetch-User': '?1'
+  'Upgrade-Insecure-Requests': '1'
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+# 想要避免檢查的網址清單
+avoid_urls:
+  - https://accessibility.moda.gov.tw/Applications/DetectLog/157716
+  - https://accessibility.moda.gov.tw/Home/Info/
+  - https://accessibility.moda.gov.tw/Download/Detail/1375?Category=52
+  - https://www.ndc.gov.tw/cp.aspx?n=32A75A78342B669D
+# 想要檢查的網址清單
+scan_urls:
+  - https://www.ncut.edu.tw/
+  # - https://en.ncut.edu.tw/
+  - https://cc.ncut.edu.tw/
+  # - https://lgc.ncut.edu.tw/
+  # - https://pr.ncut.edu.tw/
+  # - https://science.ncut.edu.tw/
+  # - https://ir.ncut.edu.tw/
+  # - https://im.ncut.edu.tw/
+  # - https://opes.ncut.edu.tw/
+  # - https://pteecs.ncut.edu.tw/
+  # - https://esh.ncut.edu.tw/
+  # - https://sec.ncut.edu.tw/
+  # - https://oaa.ncut.edu.tw/
+  # - https://osca.ncut.edu.tw/
+  # - https://ce.ncut.edu.tw/
+  # - https://eeo.ncut.edu.tw/
+  # - https://library.ncut.edu.tw/
+  # - https://sdgs.ncut.edu.tw/
+  # - https://person.ncut.edu.tw/
+  # - https://acc.ncut.edu.tw/
+  # - https://alumniweb.ncut.edu.tw/
+  # - https://coe.ncut.edu.tw/
+  # - https://chc.ncut.edu.tw/
+  # - https://cci.ncut.edu.tw/
+  # - https://mis.ncut.edu.tw/
+  # - https://n026.ncut.edu.tw/
+  # - https://ddm.ncut.edu.tw/
+  # - https://oia.ncut.edu.tw/
+  # - https://landscape.ncut.edu.tw/
+  # - https://recruit.ncut.edu.tw/
+  # - https://fec.ncut.edu.tw/
+  # - https://aenew.ncut.edu.tw/
+  # - https://n037.ncut.edu.tw/
+  # - https://freshman.ncut.edu.tw/
+  # - https://academy.ncut.edu.tw/
+  # - https://liberal.ncut.edu.tw/
+  # - https://gec.ncut.edu.tw/
+  # - https://ibpiuc.ncut.edu.tw/
+  # - https://me2.ncut.edu.tw/
+  # - https://ncut-cm.ncut.edu.tw/
+  # - https://badger.ncut.edu.tw/
+  # - https://info.ncut.edu.tw/
+  # - https://cheme.ncut.edu.tw/
+  # - https://rmrat.ncut.edu.tw/
+  # - https://oga.ncut.edu.tw/
+  # - https://n055.ncut.edu.tw/
+  # - https://ocia.ncut.edu.tw/
+  # - https://ord.ncut.edu.tw/
+  # - https://smais.ncut.edu.tw/
+  # - https://n061.ncut.edu.tw/
+  # - https://iae.ncut.edu.tw/
+  # - https://ai.ncut.edu.tw/
+  # - https://art.ncut.edu.tw/
+  # # 未用 Rpage 製作的網站
+  # - https://csie.ncut.edu.tw/
+  # - https://eeweb.ncut.edu.tw/
+  # - https://rac3.ncut.edu.tw/
