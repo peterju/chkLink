@@ -54,7 +54,7 @@ def run_update():
         with open('LocalVersion.yaml', 'r', encoding='UTF-8') as f2:
             local_ver = YAML().load(f2)
 
-        if local_ver.get('version') == remote_ver.get('version'):
+        if local_ver.get('version') >= remote_ver.get('version'):
             os.remove('RemoteVersion.yaml')
             messagebox.showwarning("資訊", "您的程式版本已是最新，故無需更新！")
         else:
@@ -738,12 +738,7 @@ analysis_btn.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
 
 # 建立中斷按鈕
 stop_btn = ttk.Button(
-    frame1_1,
-    text="中斷",
-    command=stop_scanning,
-    bootstyle="danger",
-    cursor='X_cursor',
-    state=tk.DISABLED
+    frame1_1, text="中斷", command=stop_scanning, bootstyle="danger", cursor='X_cursor', state=tk.DISABLED
 )
 Hovertip(stop_btn, '按下按鈕中斷掃描')
 stop_btn.grid(row=0, column=3, padx=5, pady=5, sticky="nsew")

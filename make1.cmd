@@ -1,5 +1,5 @@
 @echo off
-REM signtool sign /sha1 089a46b557607ae3bf629b07906b8931088107f3 /fd SHA1 /t http://timestamp.sectigo.com /v D:\pyTest\chkLink\out\chklink.exe
+rem signtool sign /sha1 089a46b557607ae3bf629b07906b8931088107f3 /fd SHA1 /t http://timestamp.sectigo.com /v out\chklink.exe
 REM --output-filename=
 REM Set-ExecutionPolicy Unrestricted
 copy /y out\chklink.exe chklink_upd.exe

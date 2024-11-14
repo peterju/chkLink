@@ -1,7 +1,6 @@
 import logging
 import os
 import re
-import subprocess
 import threading
 import time
 from collections import deque
@@ -23,39 +22,9 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.service import Service  # 配置和啟動 ChromeDriver 服務
 
 # 更新 ChromeDriver ： https://googlechromelabs.github.io/chrome-for-testing/#stable
+# from pprint import pprint
 # from openpyxl.worksheet.hyperlink import Hyperlink
 # https://titangene.github.io/article/python-logging.html
-
-
-def run_update():
-    '''更新程式'''
-
-    def wg():
-        wget.download(
-            'https://cc.ncut.edu.tw/var/file/32/1032/img/1517/RemoteVersion.yaml',
-        )
-        with open('RemoteVersion.yaml', 'r', encoding='UTF-8') as f1:
-            remote_ver = YAML().load(f1)
-        with open('LocalVersion.yaml', 'r', encoding='UTF-8') as f2:
-            local_ver = YAML().load(f2)
-
-        if local_ver.get('version') == remote_ver.get('version'):
-            os.remove('RemoteVersion.yaml')
-            print("您的程式版本已是最新，故無需更新！")
-        else:
-            filename = wget.download(
-                'https://cc.ncut.edu.tw/var/file/32/1032/img/1517/update.7z',
-            )
-            with SevenZipFile(filename, 'r') as archive:
-                archive.extractall()  # 解壓縮
-            os.remove(filename)  # 刪除下載的壓縮檔案
-            os.replace('RemoteVersion.yaml', 'LocalVersion.yaml')  # 更新版本記錄
-            subprocess.run(["update.cmd"])  # 啟動更新程式
-
-    if os.path.isfile('chklink_upd.exe'):
-        os.remove('chklink_upd.exe')
-    dl_thread = threading.Thread(target=wg)
-    dl_thread.start()
 
 
 def dl_resources():
