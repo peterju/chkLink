@@ -432,6 +432,7 @@ def queued_link_check(start_urls, depth_limit=1) -> list:
     if answer == 'yes':
         subprocess.Popen(f'explorer "{report_dir_txt.get()}"')
 
+
 def report(report_folder, filename, result) -> None:
     '''產生xlsx報告'''
     xlsx_name = os.path.join(report_folder, f"{filename}.xlsx")  # 報告檔路徑
@@ -451,22 +452,23 @@ def report(report_folder, filename, result) -> None:
     for col in ['B', 'C', 'D', 'E']:
         sheet.column_dimensions[col].width = 70  # 設定 B、C、D、E 欄寬度
     for row in range(1, sheet.max_row + 1):  # 設定第一列到最後一列
-        sheet.cell(row, 1).alignment = Alignment(horizontal='center', vertical='center')  # 第1欄設定置中
+        sheet.cell(row, 1).alignment = Alignment(horizontal='center', vertical='center')  # 第1欄設定水平置中、垂直置中
     for row in range(2, sheet.max_row + 1):
         sheet.cell(row, 2).style = "Hyperlink"  # 設定超連結樣式
         sheet.cell(row, 2).hyperlink = sheet.cell(row, 2).value
-        sheet.cell(row, 2).alignment = Alignment(vertical='center', wrap_text=True)  # 第2欄設定自動換行
+        sheet.cell(row, 2).alignment = Alignment(vertical='center', wrap_text=True)  # 第2欄設定垂直置中自動換行
 
         sheet.cell(row, 3).style = "Hyperlink"
         if not sheet.cell(row, 3).value.startswith(('http', '//')):
             sheet.cell(row, 3).hyperlink = urljoin(sheet.cell(row, 2).value, sheet.cell(row, 3).value)
         else:
             sheet.cell(row, 3).hyperlink = sheet.cell(row, 3).value
-        sheet.cell(row, 3).alignment = Alignment(vertical='center', wrap_text=True)  # 第3欄設定自動換行
+        sheet.cell(row, 3).alignment = Alignment(vertical='center', wrap_text=True)  # 第3欄設定垂直置中自動換行
 
         sheet.cell(row, 4).alignment = Alignment(
             horizontal='left', vertical='center', wrap_text=True
-        )  # 第4欄設定自動換行
+        )  # 第4欄設定水平靠左、垂直置中、自動換行
+        sheet.cell(row, 5).alignment = Alignment(vertical='center')  # 第5欄設定垂直置中
 
         for column in range(1, sheet.max_column + 1):
             sheet.cell(row, column).fill = (
