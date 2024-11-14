@@ -4,6 +4,7 @@ deploy/
 out/
 test.py
 test1.py
+*copy.py
 *.bak
 visited_link.yaml
 
