@@ -449,8 +449,12 @@ def report(report_folder, filename, result) -> None:
             sheet.append([rec['depth'], rec['url'], link, link_text, status])  # 寫入一列 5 個欄位
         for link in rec['no_alt_links']:
             sheet.append([rec['depth'], rec['url'], link, link.split('/')[-1], "圖片沒有 alt 屬性"])
-    for col in ['B', 'C', 'D', 'E']:
-        sheet.column_dimensions[col].width = 70  # 設定 B、C、D、E 欄寬度
+    # 設定欄寬
+    column_widths = {'A': 8, 'B': 60, 'C': 70, 'D': 35, 'E': 20}
+    for col, width in column_widths.items():
+        sheet.column_dimensions[col].width = width
+    # for col in ['B', 'C', 'D', 'E']:
+    #     sheet.column_dimensions[col].width = 70  # 設定 B、C、D、E 欄寬度
     for row in range(1, sheet.max_row + 1):  # 設定第一列到最後一列
         sheet.cell(row, 1).alignment = Alignment(horizontal='center', vertical='center')  # 第1欄設定水平置中、垂直置中
     for row in range(2, sheet.max_row + 1):

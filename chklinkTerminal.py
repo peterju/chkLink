@@ -36,7 +36,7 @@ def dl_resources():
     os.remove(filename)  # 刪除檔案
 
 
-def is_valid_link(base_url, link) -> bool:
+def is_valid_link(base_url, link, link_text="") -> bool:
     '''檢查連結是否有效'''
     global logger, visited_link, browser
 
@@ -65,8 +65,6 @@ def is_valid_link(base_url, link) -> bool:
             real_url = response.url  # 取得網頁的實際連結, 避免重定向造成誤判
             domain1 = urlparse(full_url).netloc  # 取得原始連結的網域
             domain2 = urlparse(real_url).netloc  # 取得實際連結的網域
-            # domain1 = '.'.join(urlparse(full_url).netloc.split('.')[1:])  # 取得原始連結的父網域
-            # domain2 = '.'.join(urlparse(real_url).netloc.split('.')[1:])  # 取得實際連結的父網域
             if status == '200' and domain1 != domain2:  # 若原始連結與實際連結的網域不同(例如: 302 暫時定向到別的網域)
                 if protocol == "https":
                     response = requests.get(full_url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=False)
@@ -107,12 +105,13 @@ def is_valid_link(base_url, link) -> bool:
             status = f"{status} 且使用 http 協定並不安全"
         visited_link[full_url] = status  # 將連結與狀態碼加入已檢查的集合
 
+    msg = f"檢查: {link} ... 狀態: {status} ... 文字: {link_text.encode('utf-8').decode('utf-8')}"
     if "200" in status:
         if "使用 http 協定並不安全" in status:
-            logger.warning(f"檢查: {link} ... 狀態: {status}")
-        logger.info(f"檢查: {link} ... 狀態: {status}")
+            logger.warning(msg)
+        logger.info(msg)
     else:
-        logger.error(f"檢查: {link} ... 狀態: {status}")
+        logger.error(msg)
     return status
 
 
@@ -133,7 +132,7 @@ def get_links(url) -> tuple:
         if domain != real_domain:  # 若原始連結與實際連結的網域不同
             return ([], [], [])  # 回傳空串列
         soup = BeautifulSoup(
-            UnicodeDammit(response.content, ["latin-1", "iso-8859-1", "windows-1251"]).unicode_markup, 'lxml'
+            UnicodeDammit(response.content, ["utf-8", "latin-1", "iso-8859-1", "windows-1251"]).unicode_markup, 'lxml'
         )  # 使用 BeautifulSoup 解析網頁內容
         result = soup.find("meta", attrs={"http-equiv": "refresh"})  # 取得 refresh 標籤
         if result:  # 若有 refresh 標籤，代表網頁有前端重新導向
@@ -149,37 +148,44 @@ def get_links(url) -> tuple:
                     client_url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True, verify=False
                 )
             soup = BeautifulSoup(
-                UnicodeDammit(response.content, ["latin-1", "iso-8859-1", "windows-1251"]).unicode_markup, 'lxml'
+                UnicodeDammit(response.content, ["utf-8", "latin-1", "iso-8859-1", "windows-1251"]).unicode_markup,
+                'lxml',
             )  # 使用 BeautifulSoup 解析網頁內容
             logger.info(f"網頁於前端重新導向至：{client_url}")
         all_links = []  # 取得所有的連結
         internal_links, external_links, no_alt_links = [], [], []  # 初始化內部連結、外部連結與沒有 alt 的連結
 
-        hrefs = [tag.get('href').strip() for tag in soup.find_all(href=True)]  # 找到所有具有 href 屬性的屬性值
-        srcs = [tag.get('src').strip() for tag in soup.find_all(src=True)]  # 找到所有具有 src 屬性的屬性值
-        if ALT_MUST:  # 若須偵測圖片的 alt 屬性
+        for tag in soup.find_all(href=True):  # 找到所有具有 href 屬性的標籤
+            link = tag.get('href').strip()
+            link_text = tag.text.strip() or link.split('/')[-1]  # 使用連結文字或檔名
+            all_links.append((link, link_text))
+
+        for tag in soup.find_all(src=True):  # 找到所有具有 src 屬性的標籤
+            link = tag.get('src').strip()
+            link_text = tag.get('alt', '').strip() or link.split('/')[-1]  # 使用 alt 屬性或檔名
+            all_links.append((link, link_text))
+
+        if ALT_MUST.lower() == 'yes':  # 若須偵測圖片的 alt 屬性
             no_alt_links = [
-                tag.get('src') for tag in soup.find_all('img', alt=False)
+                (tag.get('src'), tag.get('src').split('/')[-1]) for tag in soup.find_all('img', alt=False)
             ]  # 找到所有圖片沒有 alt 屬性的標籤
-        all_links.extend(hrefs)  # 合併 href 屬性值到所有連結
-        all_links.extend(srcs)  # 合併 src 屬性值到所有連結
+
         all_links = list(set(all_links))  # 去除重複的連結
-        for link in all_links:
+        for link, link_text in all_links:
             link_domain = urlparse(link).netloc  # 取得連結的網域
             if link.startswith(
                 ('#', 'javascript', 'mailto', 'data:image')
             ):  # 若連結為錨點、javascript、郵件連結或 base64圖片，則跳過
                 continue
             elif link_domain == domain:  # 若連結為目前網址
-                internal_links.append(link)
+                internal_links.append((link, link_text))
             elif link.startswith(('http', '//')):  # 若連結為 http 或 // 開頭的為外部連結
-                external_links.append(link)
+                external_links.append((link, link_text))
             elif link.startswith('/'):  # 若連結為 / 開頭的為內部連結
-                internal_links.append(link)
+                internal_links.append((link, link_text))
             else:  # 其它的為內部連結，例如檔名開頭的
-                internal_links.append(link)
+                internal_links.append((link, link_text))
         return (internal_links, external_links, no_alt_links)  # 回傳內部連結、外部連結、圖片沒有 alt 屬性的連結
-    # except requests.RequestException as e:
     except Exception as e:
         logger.error(f"無法取得此網頁內容：{url}  錯誤訊息：{e}")
         return ([], [], [])  # 若發生錯誤，則回傳空串列
@@ -209,22 +215,28 @@ def queued_link_check(start_url, depth_limit=1) -> list:
             internal_links, external_links, no_alt_links = [], [], []  # 初始化內部連結、外部連結與沒有 alt 的連結
             internal_links, external_links, no_alt_links = get_links(url)  # 取得內部連結、外部連結與沒有alt的連結
             if internal_links:
-                logger.info("內部連結：" + ', '.join(internal_links))  # 顯示內部連結
+                logger.info(
+                    "內部連結：" + ', '.join([f"{link} ({text})" for link, text in internal_links])
+                )  # 顯示內部連結
             if external_links:
-                logger.info("外部連結：" + ', '.join(external_links))  # 顯示外部連結
+                logger.info(
+                    "外部連結：" + ', '.join([f"{link} ({text})" for link, text in external_links])
+                )  # 顯示外部連結
             if no_alt_links:
-                logger.info("沒有 alt 屬性的連結：" + ', '.join(no_alt_links))  # 顯示沒有 alt 屬性的連結
+                logger.info(
+                    "沒有 alt 屬性的連結：" + ', '.join([f"{link} ({text})" for link, text in no_alt_links])
+                )  # 顯示沒有 alt 屬性的連結
 
             error_internal_links = []  # 存放錯誤的內部連結
-            for link in internal_links:
-                status = is_valid_link(url, link)  # 檢查連結是否有效
+            for link, link_text in internal_links:
+                status = is_valid_link(url, link, link_text)  # 檢查連結是否有效
                 if '200' not in status:  # 若狀態碼不是 200
-                    error_internal_links.append((link, status))  # 將錯誤的連結加入存放錯誤的內部連結
+                    error_internal_links.append((link, status, link_text))  # 將錯誤的連結加入存放錯誤的內部連結
             error_external_links = []  # 存放錯誤的外部連結
-            for link in external_links:  # 檢查外部連結是否有效
-                status = is_valid_link(url, link)  # 檢查連結是否有效
+            for link, link_text in external_links:  # 檢查外部連結是否有效
+                status = is_valid_link(url, link, link_text)  # 檢查連結是否有效
                 if '200' not in status:  # 若狀態碼不是 200
-                    error_external_links.append((link, status))  # 將錯誤的連結加入存放錯誤的外部連結
+                    error_external_links.append((link, status, link_text))  # 將錯誤的連結加入存放錯誤的外部連結
 
             error_links = []  # 存放此次所有 url 錯誤的連結
             # 將錯誤的內部連結加入所有錯誤連結集合
@@ -233,11 +245,11 @@ def queued_link_check(start_url, depth_limit=1) -> list:
             error_links.extend(error_external_links) if error_external_links else error_links
             error_links = list(set(error_links))  # 去除重複的錯誤連結
             if error_links:  # 若有錯誤連結存在
-                logger.error("錯誤連結：" + ', '.join([link for link, status in error_links]))
-                for link in internal_links:  # 將錯誤連結從內部連結中移除
-                    for err_link, status in error_links:
+                logger.error("錯誤連結：" + ', '.join([f"{link} ({text})" for link, status, text in error_links]))
+                for link, link_text in internal_links:  # 將錯誤連結從內部連結中移除
+                    for err_link, status, err_text in error_links:
                         if link == err_link:
-                            internal_links.remove(link)
+                            internal_links.remove((link, link_text))
             if error_links or no_alt_links:
                 record = {  # 建立錯誤連結記錄
                     'depth': current_depth,
@@ -248,7 +260,7 @@ def queued_link_check(start_url, depth_limit=1) -> list:
                 all_err_links.append(record)  # 將錯誤連結記錄加入全體錯誤連結記錄中
 
             # 將正確的內部連結加入待檢查的連結
-            for link in internal_links:
+            for link, link_text in internal_links:
                 if (
                     link and link.startswith((start_url, '/')) and current_depth <= depth_limit
                 ):  # 若連結為內部連結且深度未達到指定深度
@@ -262,36 +274,39 @@ def report(report_folder, filename, result) -> None:
     xlsx_name = os.path.join(report_folder, f"{filename}.xlsx")  # 報告檔路徑
     workbook = openpyxl.Workbook()  # 利用 Workbook 建立一個新的工作簿
     sheet = workbook.worksheets[0]  # 取得第一個工作表
-    field_names = ('層數', '網頁', '錯誤連結', '狀態碼或錯誤訊息')  # 欄位名稱
+    field_names = ('層數', '網頁', '錯誤連結', '連結文字', '狀態碼或錯誤訊息')  # 欄位名稱
     sheet.append(field_names)  # 寫入欄位名稱
     for column in range(1, sheet.max_column + 1):  # 設定第一列的第1欄到最後1欄
         sheet.cell(1, column).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         sheet.cell(1, column).font = Font(bold=True)  # 設定粗體
     sheet.row_dimensions[1].height = 20  # 設定第一列高度
     for rec in result:
-        for link, status in rec['error_links']:
-            sheet.append([rec['depth'], rec['url'], link, status])  # 寫入一列 4 個欄位
-        for link in rec['no_alt_links']:
-            sheet.append([rec['depth'], rec['url'], link, "圖片沒有 alt 屬性"])
-    for col in ['B', 'C', 'D']:
-        sheet.column_dimensions[col].width = 70  # 設定 B、C、D 欄寬度
+        for link, status, link_text in rec['error_links']:
+            sheet.append([rec['depth'], rec['url'], link, link_text, status])  # 寫入一列 5 個欄位
+        for link, link_text in rec['no_alt_links']:
+            sheet.append([rec['depth'], rec['url'], link, link_text, "圖片沒有 alt 屬性"])
+    # 設定欄寬
+    column_widths = {'A': 8, 'B': 60, 'C': 70, 'D': 35, 'E': 20}
+    for col, width in column_widths.items():
+        sheet.column_dimensions[col].width = width
     for row in range(1, sheet.max_row + 1):  # 設定第一列到最後一列
-        sheet.cell(row, 1).alignment = Alignment(horizontal='center', vertical='center')  # 第1欄設定置中
+        sheet.cell(row, 1).alignment = Alignment(horizontal='center', vertical='center')  # 第1欄設定水平置中、垂直置中
     for row in range(2, sheet.max_row + 1):
         sheet.cell(row, 2).style = "Hyperlink"  # 設定超連結樣式
         sheet.cell(row, 2).hyperlink = sheet.cell(row, 2).value
-        sheet.cell(row, 2).alignment = Alignment(vertical='center', wrap_text=True)  # 第2欄設定自動換行
+        sheet.cell(row, 2).alignment = Alignment(vertical='center', wrap_text=True)  # 第2欄設定垂直置中自動換行
 
         sheet.cell(row, 3).style = "Hyperlink"
         if not sheet.cell(row, 3).value.startswith(('http', '//')):
             sheet.cell(row, 3).hyperlink = urljoin(sheet.cell(row, 2).value, sheet.cell(row, 3).value)
         else:
             sheet.cell(row, 3).hyperlink = sheet.cell(row, 3).value
-        sheet.cell(row, 3).alignment = Alignment(vertical='center', wrap_text=True)  # 第3欄設定自動換行
+        sheet.cell(row, 3).alignment = Alignment(vertical='center', wrap_text=True)  # 第3欄設定垂直置中自動換行
 
         sheet.cell(row, 4).alignment = Alignment(
             horizontal='left', vertical='center', wrap_text=True
-        )  # 第4欄設定自動換行
+        )  # 第4欄設定水平靠左、垂直置中、自動換行
+        sheet.cell(row, 5).alignment = Alignment(vertical='center')  # 第5欄設定垂直置中
 
         for column in range(1, sheet.max_column + 1):
             sheet.cell(row, column).fill = (
@@ -447,7 +462,6 @@ for start_url in SCAN_URLS:
     result = queued_link_check(start_url, LAYER)  # 根據網址進行指定層數的連結檢查
     if result:
         report(DOC_FOLDER, filename, result)  # 產生報告
-        # pprint(result)  # 顯示錯誤連結
         err_count = sum([len(rec['error_links']) for rec in result])
         logger.info(f"=》掃描 {url_domain} 完成，共有 {err_count} 個錯誤連結。")
         logger.info(f"=》報告存放於 {DOC_FOLDER}...")
