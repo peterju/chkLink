@@ -101,14 +101,14 @@ def is_valid_link(base_url, link, link_text="") -> bool:
             status = f"{status} 請求被拒絕"
         elif status == "404":
             status = f"{status} 請求失敗"
-        elif protocol == "http":
-            status = f"{status} 且使用 http 協定並不安全"
+        elif status == "410":
+            status = f"{status} 請求的資源已經不存在"
+        elif status == "500":
+            status = f"{status} 伺服器錯誤"
         visited_link[full_url] = status  # 將連結與狀態碼加入已檢查的集合
 
     msg = f"檢查: {link} ... 狀態: {status} ... 文字: {link_text.encode('utf-8').decode('utf-8')}"
     if "200" in status:
-        if "使用 http 協定並不安全" in status:
-            logger.warning(msg)
         logger.info(msg)
     else:
         logger.error(msg)
@@ -116,7 +116,7 @@ def is_valid_link(base_url, link, link_text="") -> bool:
 
 
 def get_links(url) -> tuple:
-    '''取得網頁中的所有內部連結、外部連結與沒有 alt 的連結'''
+    '''取得網頁中的所有內部連結、外部連結、沒有 alt 的連結與 HTTP 連結'''
     global logger
     try:
         protocol = urlparse(url).scheme  # 取得協定
@@ -130,7 +130,7 @@ def get_links(url) -> tuple:
         real_url = response.url  # 取得網頁的實際連結, 避免重定向造成誤判
         real_domain = urlparse(real_url).netloc  # 取得網域
         if domain != real_domain:  # 若原始連結與實際連結的網域不同
-            return ([], [], [])  # 回傳空串列
+            return ([], [], [], [])  # 回傳空串列
         soup = BeautifulSoup(
             UnicodeDammit(response.content, ["utf-8", "latin-1", "iso-8859-1", "windows-1251"]).unicode_markup, 'lxml'
         )  # 使用 BeautifulSoup 解析網頁內容
@@ -153,7 +153,7 @@ def get_links(url) -> tuple:
             )  # 使用 BeautifulSoup 解析網頁內容
             logger.info(f"網頁於前端重新導向至：{client_url}")
         all_links = []  # 取得所有的連結
-        internal_links, external_links, no_alt_links = [], [], []  # 初始化內部連結、外部連結與沒有 alt 的連結
+        internal_links, external_links, no_alt_links, http_links = [], [], [], []  # 初始化內部連結、外部連結、沒有 alt 的連結與 HTTP 連結
 
         for tag in soup.find_all(href=True):  # 找到所有具有 href 屬性的標籤
             link = tag.get('href').strip()
@@ -181,15 +181,16 @@ def get_links(url) -> tuple:
                 internal_links.append((link, link_text))
             elif link.startswith(('http', '//')):  # 若連結為 http 或 // 開頭的為外部連結
                 external_links.append((link, link_text))
+                if link.startswith('http://') and CHECK_HTTP.lower() == 'yes':  # 若連結為 http 協定且需要檢查
+                    http_links.append((link, link_text))
             elif link.startswith('/'):  # 若連結為 / 開頭的為內部連結
                 internal_links.append((link, link_text))
             else:  # 其它的為內部連結，例如檔名開頭的
                 internal_links.append((link, link_text))
-        return (internal_links, external_links, no_alt_links)  # 回傳內部連結、外部連結、圖片沒有 alt 屬性的連結
+        return (internal_links, external_links, no_alt_links, http_links)  # 回傳內部連結、外部連結、圖片沒有 alt 屬性的連結與 HTTP 連結
     except Exception as e:
         logger.error(f"無法取得此網頁內容：{url}  錯誤訊息：{e}")
-        return ([], [], [])  # 若發生錯誤，則回傳空串列
-
+        return ([], [], [], [])  # 若發生錯誤，則回傳空串列
 
 def queued_link_check(start_url, depth_limit=1) -> list:
     '''使用雙向佇列結構儲存網站中的連結'''
@@ -212,8 +213,7 @@ def queued_link_check(start_url, depth_limit=1) -> list:
         if url not in visited_url and current_depth <= depth_limit:  # 若連結未檢查過且深度未達到指定深度
             logger.info(f"第 {current_depth} 層連結： {url}")  # 顯示目前檢查的連結
             visited_url.add(url)  # 將連結加入已檢查的集合
-            internal_links, external_links, no_alt_links = [], [], []  # 初始化內部連結、外部連結與沒有 alt 的連結
-            internal_links, external_links, no_alt_links = get_links(url)  # 取得內部連結、外部連結與沒有alt的連結
+            internal_links, external_links, no_alt_links, http_links = get_links(url)  # 取得內部連結、外部連結、沒有alt的連結與 HTTP 連結
             if internal_links:
                 logger.info(
                     "內部連結：" + ', '.join([f"{link} ({text})" for link, text in internal_links])
@@ -226,6 +226,10 @@ def queued_link_check(start_url, depth_limit=1) -> list:
                 logger.info(
                     "沒有 alt 屬性的連結：" + ', '.join([f"{link} ({text})" for link, text in no_alt_links])
                 )  # 顯示沒有 alt 屬性的連結
+            if http_links:
+                logger.info(
+                    "HTTP 連結：" + ', '.join([f"{link} ({text})" for link, text in http_links])
+                )  # 顯示 HTTP 連結
 
             error_internal_links = []  # 存放錯誤的內部連結
             for link, link_text in internal_links:
@@ -248,14 +252,15 @@ def queued_link_check(start_url, depth_limit=1) -> list:
                 logger.error("錯誤連結：" + ', '.join([f"{link} ({text})" for link, status, text in error_links]))
                 for link, link_text in internal_links:  # 將錯誤連結從內部連結中移除
                     for err_link, status, err_text in error_links:
-                        if link == err_link:
+                        if (link, link_text) in internal_links:
                             internal_links.remove((link, link_text))
-            if error_links or no_alt_links:
+            if error_links or no_alt_links or http_links:
                 record = {  # 建立錯誤連結記錄
                     'depth': current_depth,
                     'url': url,
                     'error_links': error_links,
                     'no_alt_links': no_alt_links,
+                    'http_links': http_links,  # 新增 HTTP 連結記錄
                 }
                 all_err_links.append(record)  # 將錯誤連結記錄加入全體錯誤連結記錄中
 
@@ -268,7 +273,6 @@ def queued_link_check(start_url, depth_limit=1) -> list:
                     queue.append((absolute_link, current_depth + 1))  # 將絕對連結加入待檢查的連結
     return all_err_links
 
-
 def report(report_folder, filename, result) -> None:
     '''產生xlsx報告'''
     xlsx_name = os.path.join(report_folder, f"{filename}.xlsx")  # 報告檔路徑
@@ -280,13 +284,19 @@ def report(report_folder, filename, result) -> None:
         sheet.cell(1, column).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         sheet.cell(1, column).font = Font(bold=True)  # 設定粗體
     sheet.row_dimensions[1].height = 20  # 設定第一列高度
-    for rec in result:
+
+    # 對結果進行排序，按照層數和網頁進行排序
+    sorted_result = sorted(result, key=lambda x: (x['depth'], x['url']))
+
+    for rec in sorted_result:
         for link, status, link_text in rec['error_links']:
             sheet.append([rec['depth'], rec['url'], link, link_text, status])  # 寫入一列 5 個欄位
         for link, link_text in rec['no_alt_links']:
             sheet.append([rec['depth'], rec['url'], link, link_text, "圖片沒有 alt 屬性"])
+        for link, link_text in rec.get('http_links', []):
+            sheet.append([rec['depth'], rec['url'], link, link_text, "使用 http 協定並不安全"])
     # 設定欄寬
-    column_widths = {'A': 8, 'B': 60, 'C': 70, 'D': 35, 'E': 20}
+    column_widths = {'A': 8, 'B': 60, 'C': 70, 'D': 35, 'E': 70}
     for col, width in column_widths.items():
         sheet.column_dimensions[col].width = width
     for row in range(1, sheet.max_row + 1):  # 設定第一列到最後一列
@@ -302,11 +312,8 @@ def report(report_folder, filename, result) -> None:
         else:
             sheet.cell(row, 3).hyperlink = sheet.cell(row, 3).value
         sheet.cell(row, 3).alignment = Alignment(vertical='center', wrap_text=True)  # 第3欄設定垂直置中自動換行
-
-        sheet.cell(row, 4).alignment = Alignment(
-            horizontal='left', vertical='center', wrap_text=True
-        )  # 第4欄設定水平靠左、垂直置中、自動換行
-        sheet.cell(row, 5).alignment = Alignment(vertical='center')  # 第5欄設定垂直置中
+        sheet.cell(row, 4).alignment = Alignment(vertical='center', wrap_text=True)  # 第4欄設定垂直置中自動換行
+        sheet.cell(row, 5).alignment = Alignment(vertical='center', wrap_text=True)  # 第5欄設定垂直置中自動換行
 
         for column in range(1, sheet.max_column + 1):
             sheet.cell(row, column).fill = (
@@ -316,7 +323,6 @@ def report(report_folder, filename, result) -> None:
             )  # 設定偶數列的背景顏色
     sheet.freeze_panes = sheet['A2']  # 設定凍結第一列
     workbook.save(xlsx_name)  # 儲存檔案
-
 
 def create_logger(log_folder, filename) -> logging.Logger:
     """建立 logger"""
@@ -377,6 +383,8 @@ def create_config(cfg_file) -> dict:
         setting['layer'] = 3  # 定義連結檢查層數
         setting['timeout'] = 8  # 定義逾時秒數
         setting['alt_must'] = 'no'  # 定義是否必須偵測圖片的 alt 屬性
+        setting['check_http'] = 'yes'  # 定義是否檢查 HTTP 協定
+        setting['rpt_folder'] = ''  # 定義存放檢查報告的目錄
         setting['headers'] = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -422,13 +430,32 @@ def read_config(cfg_file) -> dict:
 
 config_file = 'config.yaml'
 setting = read_config(config_file)  # 讀取設定檔 config.yaml，若設定檔存在則讀取，否則建立設定檔
+
+# 檢查並補充缺少的設定
+lack_config = False
 if not setting.get('rpt_folder'):
-    setting['rpt_folder'] = os.path.join(os.environ['USERPROFILE'], 'Documents')  # 預設檔案存放目錄為【我的文件】
+    setting['rpt_folder'] = os.path.join(os.environ['USERPROFILE'], 'Documents')  # 如果沒有設定報告存放目錄，則設定為【我的文件】
+    lack_config = True
+if not os.path.exists(setting['rpt_folder']):
+    setting['rpt_folder'] = os.path.join(os.environ['USERPROFILE'], 'Documents')  # 如果報告存放目錄找不到，則設定為【我的文件】
+    lack_config = True
+if not setting.get('check_http'):
+    setting['check_http'] = 'yes'  # 預設檢查 HTTP 協定
+    lack_config = True
+
+# 如果有新的設定，則將新設定存回設定檔
+if lack_config:
+    with open(config_file, 'w', encoding='UTF-8') as f:
+        yaml = YAML()
+        yaml.preserve_quotes = True
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        yaml.dump(setting, f)
 
 # 設定全域變數
 LAYER = setting.get('layer')  # 定義連結檢查層數
 TIMEOUT = setting.get('timeout')  # 定義逾時秒數
 ALT_MUST = setting.get('alt_must')  # 定義是否必須偵測圖片的 alt 屬性
+CHECK_HTTP = setting.get('check_http')  # 定義是否檢查 HTTP 協定
 HEADERS = setting.get('headers')  # 定義連線標頭
 AVOID_URLS = setting.get('avoid_urls')  # 定義避免檢查的網址
 SCAN_URLS = setting.get('scan_urls')  # 定義想要檢查的網址
