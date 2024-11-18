@@ -153,7 +153,12 @@ def get_links(url) -> tuple:
             )  # 使用 BeautifulSoup 解析網頁內容
             logger.info(f"網頁於前端重新導向至：{client_url}")
         all_links = []  # 取得所有的連結
-        internal_links, external_links, no_alt_links, http_links = [], [], [], []  # 初始化內部連結、外部連結、沒有 alt 的連結與 HTTP 連結
+        internal_links, external_links, no_alt_links, http_links = (
+            [],
+            [],
+            [],
+            [],
+        )  # 初始化內部連結、外部連結、沒有 alt 的連結與 HTTP 連結
 
         for tag in soup.find_all(href=True):  # 找到所有具有 href 屬性的標籤
             link = tag.get('href').strip()
@@ -187,10 +192,18 @@ def get_links(url) -> tuple:
                 internal_links.append((link, link_text))
             else:  # 其它的為內部連結，例如檔名開頭的
                 internal_links.append((link, link_text))
-        return (internal_links, external_links, no_alt_links, http_links)  # 回傳內部連結、外部連結、圖片沒有 alt 屬性的連結與 HTTP 連結
+        return (
+            internal_links,
+            external_links,
+            no_alt_links,
+            http_links,
+        )  # 回傳內部連結、外部連結、圖片沒有 alt 屬性的連結與 HTTP 連結
     except Exception as e:
         logger.error(f"無法取得此網頁內容：{url}  錯誤訊息：{e}")
-        return ([], [], [], [])  # 若發生錯誤，則回傳空串列
+        # 將錯誤資訊加入到 internal_links 中
+        internal_links = [(url, f"無法取得此網頁內容：{e}")]
+        return (internal_links, [], [], [])  # 若發生錯誤，回傳包含錯誤資訊的串列
+
 
 def queued_link_check(start_url, depth_limit=1) -> list:
     '''使用雙向佇列結構儲存網站中的連結'''
@@ -213,7 +226,9 @@ def queued_link_check(start_url, depth_limit=1) -> list:
         if url not in visited_url and current_depth <= depth_limit:  # 若連結未檢查過且深度未達到指定深度
             logger.info(f"第 {current_depth} 層連結： {url}")  # 顯示目前檢查的連結
             visited_url.add(url)  # 將連結加入已檢查的集合
-            internal_links, external_links, no_alt_links, http_links = get_links(url)  # 取得內部連結、外部連結、沒有alt的連結與 HTTP 連結
+            internal_links, external_links, no_alt_links, http_links = get_links(
+                url
+            )  # 取得內部連結、外部連結、沒有alt的連結與 HTTP 連結
             if internal_links:
                 logger.info(
                     "內部連結：" + ', '.join([f"{link} ({text})" for link, text in internal_links])
@@ -273,6 +288,7 @@ def queued_link_check(start_url, depth_limit=1) -> list:
                     queue.append((absolute_link, current_depth + 1))  # 將絕對連結加入待檢查的連結
     return all_err_links
 
+
 def report(report_folder, filename, result) -> None:
     '''產生xlsx報告'''
     xlsx_name = os.path.join(report_folder, f"{filename}.xlsx")  # 報告檔路徑
@@ -323,6 +339,7 @@ def report(report_folder, filename, result) -> None:
             )  # 設定偶數列的背景顏色
     sheet.freeze_panes = sheet['A2']  # 設定凍結第一列
     workbook.save(xlsx_name)  # 儲存檔案
+
 
 def create_logger(log_folder, filename) -> logging.Logger:
     """建立 logger"""
@@ -434,10 +451,14 @@ setting = read_config(config_file)  # 讀取設定檔 config.yaml，若設定檔
 # 檢查並補充缺少的設定
 lack_config = False
 if not setting.get('rpt_folder'):
-    setting['rpt_folder'] = os.path.join(os.environ['USERPROFILE'], 'Documents')  # 如果沒有設定報告存放目錄，則設定為【我的文件】
+    setting['rpt_folder'] = os.path.join(
+        os.environ['USERPROFILE'], 'Documents'
+    )  # 如果沒有設定報告存放目錄，則設定為【我的文件】
     lack_config = True
 if not os.path.exists(setting['rpt_folder']):
-    setting['rpt_folder'] = os.path.join(os.environ['USERPROFILE'], 'Documents')  # 如果報告存放目錄找不到，則設定為【我的文件】
+    setting['rpt_folder'] = os.path.join(
+        os.environ['USERPROFILE'], 'Documents'
+    )  # 如果報告存放目錄找不到，則設定為【我的文件】
     lack_config = True
 if not setting.get('check_http'):
     setting['check_http'] = 'yes'  # 預設檢查 HTTP 協定

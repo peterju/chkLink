@@ -274,7 +274,9 @@ def get_links(url) -> tuple:
         logger.error(msg)
         log_console.insert(tk.END, msg + "\n", "ERROR")
         log_console.see(tk.END)  # 捲動 log_console 至最後一行
-        return ([], [], [], [])  # 若發生錯誤，則回傳空串列
+        # 將錯誤資訊加入到 internal_links 中
+        internal_links = [(url, f"無法取得此網頁內容：{e}")]
+        return (internal_links, [], [], [])  # 若發生錯誤，回傳包含錯誤資訊的串列
 
 
 def analysis_func(start_urls, depth_limit=1):
