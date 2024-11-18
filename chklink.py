@@ -8,7 +8,7 @@ import tkinter as tk
 from collections import deque
 from datetime import datetime
 from idlelib.tooltip import Hovertip
-from tkinter import filedialog, font, messagebox, scrolledtext
+from tkinter import filedialog, messagebox, scrolledtext
 from urllib.parse import urljoin, urlparse
 
 import openpyxl
@@ -117,7 +117,7 @@ def is_valid_link(base_url, link, link_text="") -> bool:
             status = str(response.status_code)  # 取得狀態碼
             real_url = response.url  # 取得網頁的實際連結, 避免重定向造成誤判
             domain1 = urlparse(full_url).netloc  # 取得原始連結的網域
-            domain2 = urlparse(real_url).netloc  # 取得實際連結的網域
+            domain2 = urlparse(real_url).netloc  # 取得實際連結的網域B
             if status == '200' and domain1 != domain2:  # 若原始連結與實際連結的網域不同(例如: 302 暫時定向到別的網域)
                 if protocol == "https":
                     response = requests.get(
@@ -160,6 +160,10 @@ def is_valid_link(base_url, link, link_text="") -> bool:
             status = f"{status} 請求被拒絕"
         elif status == "404":
             status = f"{status} 請求失敗"
+        elif status == "410":
+            status = f"{status} 請求的資源已經不存在"
+        elif status == "500":
+            status = f"{status} 伺服器錯誤"
         elif protocol == "http":
             status = f"{status} 且使用 http 協定並不安全"
         visited_link[full_url] = status  # 將連結與狀態碼加入已檢查的集合
@@ -180,7 +184,7 @@ def is_valid_link(base_url, link, link_text="") -> bool:
 
 
 def get_links(url) -> tuple:
-    '''取得網頁中的所有內部連結、外部連結與沒有 alt 的連結'''
+    '''取得網頁中的所有內部連結、外部連結、沒有 alt 的連結與 HTTP 連結'''
     global logger
     try:
         protocol = urlparse(url).scheme  # 取得協定
@@ -196,7 +200,7 @@ def get_links(url) -> tuple:
         real_url = response.url  # 取得網頁的實際連結, 避免重定向造成誤判
         real_domain = urlparse(real_url).netloc  # 取得網域
         if domain != real_domain:  # 若原始連結與實際連結的網域不同
-            return ([], [], [])  # 回傳空串列
+            return ([], [], [], [])  # 回傳空串列
         # 使用 UnicodeDammit 來處理編碼問題
         dammit = UnicodeDammit(response.content, ["utf-8", "latin-1", "iso-8859-1", "windows-1251"])
         soup = BeautifulSoup(dammit.unicode_markup, 'lxml')  # 使用 BeautifulSoup 解析網頁內容
@@ -220,7 +224,12 @@ def get_links(url) -> tuple:
             log_console.insert(tk.END, msg + "\n", "INFO")
             log_console.see(tk.END)
         all_links = []  # 取得所有的連結
-        internal_links, external_links, no_alt_links = [], [], []  # 初始化內部連結、外部連結與沒有 alt 的連結
+        internal_links, external_links, no_alt_links, http_links = (
+            [],
+            [],
+            [],
+            [],
+        )  # 初始化內部連結、外部連結、沒有 alt 的連結與 HTTP 連結
 
         for tag in soup.find_all(href=True):  # 找到所有具有 href 屬性的標籤
             link = tag.get('href').strip()
@@ -248,17 +257,24 @@ def get_links(url) -> tuple:
                 internal_links.append((link, link_text))
             elif link.startswith(('http', '//')):  # 若連結為 http 或 // 開頭的為外部連結
                 external_links.append((link, link_text))
+                if link.startswith('http://') and check_http_txt.get().lower() == 'yes':  # 若連結為 http 協定且需要檢查
+                    http_links.append((link, link_text))
             elif link.startswith('/'):  # 若連結為 / 開頭的為內部連結
                 internal_links.append((link, link_text))
             else:  # 其它的為內部連結，例如檔名開頭的
                 internal_links.append((link, link_text))
-        return (internal_links, external_links, no_alt_links)  # 回傳內部連結、外部連結、圖片沒有 alt 屬性的連結
+        return (
+            internal_links,
+            external_links,
+            no_alt_links,
+            http_links,
+        )  # 回傳內部連結、外部連結、圖片沒有 alt 屬性的連結與 HTTP 連結
     except Exception as e:
         msg = f"無法取得此網頁內容：{url}  錯誤訊息：{e}"
         logger.error(msg)
         log_console.insert(tk.END, msg + "\n", "ERROR")
         log_console.see(tk.END)  # 捲動 log_console 至最後一行
-        return ([], [], [])  # 若發生錯誤，則回傳空串列
+        return ([], [], [], [])  # 若發生錯誤，則回傳空串列
 
 
 def analysis_func(start_urls, depth_limit=1):
@@ -331,8 +347,9 @@ def queued_link_check(start_urls, depth_limit=1) -> list:
                 log_console.insert(tk.END, msg + "\n", "INFO")
                 log_console.see(tk.END)  # 捲動 log_console 至最後一行
                 visited_url.add(url)  # 將連結加入已檢查的集合
-                internal_links, external_links, no_alt_links = [], [], []  # 初始化內部連結、外部連結與沒有 alt 的連結
-                internal_links, external_links, no_alt_links = get_links(url)  # 取得內部連結、外部連結與沒有alt的連結
+                internal_links, external_links, no_alt_links, http_links = get_links(
+                    url
+                )  # 取得內部連結、外部連結、沒有alt的連結與 HTTP 連結
                 if internal_links:
                     msg = f"內部連結：{', '.join([link for link, _ in internal_links])}"
                     logger.info(msg)
@@ -343,6 +360,10 @@ def queued_link_check(start_urls, depth_limit=1) -> list:
                     log_console.insert(tk.END, msg + "\n", "INFO")
                 if no_alt_links:
                     msg = f"沒有 alt 屬性的連結：{', '.join([link for link, _ in no_alt_links])}"
+                    logger.info(msg)
+                    log_console.insert(tk.END, msg + "\n", "INFO")
+                if http_links:
+                    msg = f"HTTP 連結：{', '.join([link for link, _ in http_links])}"
                     logger.info(msg)
                     log_console.insert(tk.END, msg + "\n", "INFO")
                 log_console.see(tk.END)  # 捲動 log_console 至最後一行
@@ -373,15 +394,16 @@ def queued_link_check(start_urls, depth_limit=1) -> list:
                     log_console.see(tk.END)  # 捲動 log_console 至最後一行
                     for link, _ in internal_links:  # 將錯誤連結從內部連結中移除
                         for err_link, status, _ in error_links:
-                            if link == err_link:
-                                internal_links.remove((link, _))
+                            if (link, link_text) in internal_links:
+                                internal_links.remove((link, link_text))
 
-                if error_links or no_alt_links:
+                if error_links or no_alt_links or http_links:
                     record = {  # 建立錯誤連結記錄
                         'depth': current_depth,
                         'url': url,
                         'error_links': error_links,
                         'no_alt_links': no_alt_links,
+                        'http_links': http_links,  # 新增 HTTP 連結記錄
                     }
                     all_err_links.append(record)  # 將錯誤連結記錄加入全體錯誤連結記錄中
 
@@ -449,12 +471,13 @@ def report(report_folder, filename, result) -> None:
             sheet.append([rec['depth'], rec['url'], link, link_text, status])  # 寫入一列 5 個欄位
         for link in rec['no_alt_links']:
             sheet.append([rec['depth'], rec['url'], link, link.split('/')[-1], "圖片沒有 alt 屬性"])
+        if check_http_txt.get().lower() == 'yes':
+            for link, link_text in rec.get('http_links', []):
+                sheet.append([rec['depth'], rec['url'], link, link_text, "使用 http 協定並不安全"])
     # 設定欄寬
     column_widths = {'A': 8, 'B': 60, 'C': 70, 'D': 35, 'E': 20}
     for col, width in column_widths.items():
         sheet.column_dimensions[col].width = width
-    # for col in ['B', 'C', 'D', 'E']:
-    #     sheet.column_dimensions[col].width = 70  # 設定 B、C、D、E 欄寬度
     for row in range(1, sheet.max_row + 1):  # 設定第一列到最後一列
         sheet.cell(row, 1).alignment = Alignment(horizontal='center', vertical='center')  # 第1欄設定水平置中、垂直置中
     for row in range(2, sheet.max_row + 1):
@@ -540,19 +563,25 @@ def save_config() -> None:
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.indent(mapping=2, sequence=4, offset=2)
+
+    # 讀取現有的設定檔，保留註解
+    with open(config_file, 'r', encoding='UTF-8') as f:
+        current_config = yaml.load(f)
+
+    # 更新設定值
+    current_config['layer'] = int(layer_txt.get())  # 取得連結檢查層數
+    current_config['timeout'] = int(timeout_txt.get())  # 取得逾時秒數
+    current_config['alt_must'] = alt_must_txt.get()  # 取得是否必須偵測圖片的 alt 屬性
+    current_config['check_http'] = check_http_txt.get()  # 取得是否檢查 HTTP 協定
+    current_config['rpt_folder'] = report_dir_txt.get()  # 報告檔案目錄
+    current_config['headers'] = HEADERS  # 連線標頭
+    current_config['avoid_urls'] = AVOID_URLS  # 避免檢查的網址
+    current_config['scan_urls'] = SCAN_URLS  # 想要檢查的網址
+
+    # 將更新後的設定寫回檔案，保留註解
     with open(config_file, 'w', encoding='UTF-8') as f:
-        yaml.dump(
-            {
-                'layer': int(layer_txt.get()),  # 取得連結檢查層數
-                'timeout': int(timeout_txt.get()),  # 取得逾時秒數
-                'alt_must': alt_must_txt.get(),  # 取得是否必須偵測圖片的 alt 屬性
-                'rpt_folder': report_dir_txt.get(),  # 報告檔案目錄
-                'headers': HEADERS,  # 連線標頭
-                'avoid_urls': AVOID_URLS,  # 避免檢查的網址
-                'scan_urls': SCAN_URLS,  # 想要檢查的網址
-            },
-            f,
-        )
+        yaml.dump(current_config, f)
+
     msg = "設定檔已儲存。"
     log_console.insert(tk.END, msg + "\n", "INFO")
     log_console.see(tk.END)  # 捲動 log_console 至最後一行
@@ -593,6 +622,8 @@ def create_config(cfg_file) -> dict:
         setting['layer'] = 3  # 定義連結檢查層數
         setting['timeout'] = 8  # 定義逾時秒數
         setting['alt_must'] = 'no'  # 定義是否必須偵測圖片的 alt 屬性
+        setting['check_http'] = 'yes'  # 定義是否檢查 HTTP 協定
+        setting['rpt_folder'] = ''  # 定義存放檢查報告的目錄
         setting['headers'] = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -651,16 +682,40 @@ def make_cmd(file) -> None:
         f.write('timeout 6\n')
 
 
-# 定義全域變數
+def update_setting(key, default_value):
+    global updated
+    if not setting.get(key):
+        setting[key] = default_value
+        updated = True
+
+
+# 設定全域變數
+HEADERS, AVOID_URLS, SCAN_URLS = dict(), list(), list()
 stop_scan = False
 upd_file = 'update.cmd'
 if not os.path.exists(upd_file):
     make_cmd(upd_file)  # 建立更新程式的批次檔
+
 config_file = 'config.yaml'
 setting = read_config(config_file)  # 讀取設定檔 config.yaml，若設定檔存在則讀取，否則建立設定檔
-if not setting.get('rpt_folder'):
-    setting['rpt_folder'] = os.path.join(os.environ['USERPROFILE'], 'Documents')  # 預設檔案存放目錄為【我的文件】
-HEADERS, AVOID_URLS, SCAN_URLS = dict(), list(), list()
+
+# 檢查並補充缺少的設定
+updated = False
+
+update_setting('rpt_folder', os.path.join(os.environ['USERPROFILE'], 'Documents'))
+if not os.path.exists(setting['rpt_folder']):
+    setting['rpt_folder'] = os.path.join(os.environ['USERPROFILE'], 'Documents')
+    updated = True
+update_setting('check_http', 'yes')
+
+# 如果有更新設定，則將更新後的設定存回設定檔
+if updated:
+    with open(config_file, 'w', encoding='UTF-8') as f:
+        yaml = YAML()
+        yaml.preserve_quotes = True
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        yaml.dump(setting, f)
+
 
 # 其它全域變數與設定
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # 關閉 SSL 不安全的警告訊息
@@ -677,6 +732,8 @@ vc = dict()
 if os.path.exists('LocalVersion.yaml'):
     with open('LocalVersion.yaml', 'r', encoding='UTF-8') as f:
         vc = yaml.load(f)  # 讀取本地版本檔案
+
+# 建立主視窗
 form = ttk.Window(themename="superhero")
 form.title(f"網頁失效連結掃描工具 Ver.{vc.get('version')}")  # 設定視窗標題
 form.geometry("1024x768")  # 設定視窗寬高
@@ -684,6 +741,12 @@ form.resizable(True, True)
 # 指定行和列的權重
 form.rowconfigure(0, weight=1)
 form.columnconfigure(0, weight=1)
+
+form.option_add("*Font", "新細明體 11")  # 設定所有元件的字型為新細明體，大小為 11
+
+# default_font = font.nametofont("TkDefaultFont")  # 取得預設字型
+# default_font.configure(family="Courier New", size=11)  # 設定預設字型為新細明體，大小為 11
+# form.option_add("*Font", default_font)  # 設定所有元件的字型為預設字型
 
 # 建立頁籤元件 Notebook
 notebook = ttk.Notebook(form)
@@ -697,8 +760,8 @@ notebook.add(page2, text="系統設定")
 page1.columnconfigure(0, weight=1)
 page1.rowconfigure(2, weight=1)
 page2.columnconfigure(0, weight=1)
-page2.rowconfigure(3, weight=2)
-page2.rowconfigure(4, weight=2)
+page2.rowconfigure(3, weight=1)
+page2.rowconfigure(4, weight=1)
 page2.rowconfigure(5, weight=1)
 
 # --- page1 ---
@@ -727,7 +790,7 @@ start_url_context_menu.add_command(label="清除", command=clear_start_url)
 # 綁定右鍵事件
 start_url_txt.bind("<Button-3>", lambda e: start_url_context_menu.post(e.x_root, e.y_root))
 # bug fix: 修正 ttkbootstrap 無法在 ScrolledText 元件按下 Ctrl+A 選取所有文字的問題
-# "d:\pyTest\urlchecker\env\Lib\site-packages\ttkbootstrap\window.py", line 104, in on_select_all
+# "d:\pyTest\chklink\.venv\Lib\site-packages\ttkbootstrap\window.py", line 104, in on_select_all
 # if widget.__class__.__name__ in ("Text",'ScrolledText'):
 
 # 建立掃描按鈕
@@ -781,46 +844,55 @@ cfg_save_btn.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
 run_upd_btn = ttk.Button(page2, text="檢查更新", command=run_update, bootstyle="warning", cursor='hand2')
 run_upd_btn.grid(row=0, column=2, rowspan=2, padx=10, pady=10, sticky="nsew")
 
-# 建立連結的層數Label
+# 建立檢查連結的層數Label
 layer_txt_label = ttk.Label(frame2_1, text="檢查連結的層數")
 layer_txt_label.grid(row=0, column=0, padx=5)
 
-# 建立連結的層數
+# 建立檢查連結的層數
 layer_txt = ttk.Entry(frame2_1, width=3)
 layer_txt.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 layer_txt.insert(0, setting.get('layer'))  # 設定預設連結的層數
 
-# 建立連線逾時秒數Label
-timeout_txt_label = ttk.Label(frame2_1, text="連線逾時秒數")
-timeout_txt_label.grid(row=0, column=2, padx=5)
-
-# 建立連線逾時秒數
-timeout_txt = ttk.Entry(frame2_1, width=3)
-timeout_txt.grid(row=0, column=3, padx=5, pady=5, sticky="ew")
-timeout_txt.insert(0, setting.get('timeout'))
-
 # 建立圖片是否必須有 alt 屬性Label
 alt_must_txt_label = ttk.Label(frame2_1, text="圖片是否必須有 alt 屬性")
-alt_must_txt_label.grid(row=0, column=4, padx=5)
+alt_must_txt_label.grid(row=0, column=2, padx=5)
 
 # 建立圖片是否必須有 alt 屬性
 alt_must_txt = ttk.Combobox(frame2_1, values=["no", "yes"], width=6)
-alt_must_txt.grid(row=0, column=5, padx=5, pady=5, sticky="ew")
+alt_must_txt.grid(row=0, column=3, padx=5, pady=5, sticky="ew")
 alt_must_txt.set(setting.get('alt_must'))
+
+# 建立檢查不安全的 http 協定 Label
+check_http_txt_label = ttk.Label(frame2_1, text="檢查不安全的 http 協定")
+check_http_txt_label.grid(row=0, column=4, padx=5)
+
+# 建立檢查不安全的 http 協定
+check_http_txt = ttk.Combobox(frame2_1, values=["no", "yes"], width=6)
+check_http_txt.grid(row=0, column=5, padx=5, pady=5, sticky="ew")
+check_http_txt.set(setting.get('check_http'))
 
 # 建立 frame2_2
 frame2_2 = ttk.Frame(page2)
 frame2_2.grid(row=1, column=0, padx=1, pady=1, sticky="nsew")
-frame2_2.columnconfigure(1, weight=1)
-frame2_2.columnconfigure(3, weight=1)
+# frame2_2.columnconfigure(1, weight=1)
+frame2_2.columnconfigure(4, weight=1)
+
+# 建立連線逾時秒數Label
+timeout_txt_label = ttk.Label(frame2_2, text="連線逾時秒數")
+timeout_txt_label.grid(row=0, column=1, padx=5)
+
+# 建立連線逾時秒數
+timeout_txt = ttk.Entry(frame2_2, width=3)
+timeout_txt.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
+timeout_txt.insert(0, setting.get('timeout'))
 
 # 建立結果存放Label
-report_dir_txt_label = ttk.Label(frame2_2, text="結果存放")
-report_dir_txt_label.grid(row=0, column=0, padx=5, pady=5)
+report_dir_txt_label = ttk.Label(frame2_2, text="報告路徑")
+report_dir_txt_label.grid(row=0, column=3, padx=5, pady=5)
 
 # 建立結果存放輸入框
-report_dir_txt = ttk.Entry(frame2_2)
-report_dir_txt.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+report_dir_txt = ttk.Entry(frame2_2, font=('Courier New', 10))
+report_dir_txt.grid(row=0, column=4, padx=5, pady=5, sticky="ew")
 report_dir_txt.insert(0, setting.get('rpt_folder'))  # 設定預設結果存放目錄
 
 # 建立更改目錄按鈕
@@ -834,7 +906,7 @@ choose_dir_button = ttk.Button(
     image=choose_dir_icon,
     compound=tk.LEFT,  # 將圖示放在文字的左邊
 )
-choose_dir_button.grid(row=0, column=2, padx=10)
+choose_dir_button.grid(row=0, column=5, padx=10)
 
 upd_progress_show = ttk.Progressbar(page2, orient='horizontal', mode='determinate')
 upd_progress_show.grid(row=2, column=0, columnspan=3, padx=5, pady=2, sticky="nsew")
@@ -874,10 +946,6 @@ scan_urls_txt = scrolledtext.ScrolledText(frame2_5, wrap=tk.WORD, font=('Courier
 scan_urls_txt.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
 for url in setting.get('scan_urls'):
     scan_urls_txt.insert(tk.END, f"{url}\n")
-
-# 設定視窗預設字型大小
-default_font = font.nametofont("TkDefaultFont")  # 取得預設字型
-default_font.configure(family="新細明體", size=11)  # 設定預設字型為新細明體，大小為 11
 
 # 開始主迴圈
 form.mainloop()
