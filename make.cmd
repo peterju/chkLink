@@ -7,4 +7,4 @@ if exist out (
     rmdir /s /q out
 )
 
-nuitka --standalone --onefile --enable-plugin=tk-inter --windows-icon-from-ico=chklink.ico --output-dir=out - -windows-console-mode=disable chklink.py
+nuitka --standalone --onefile --enable-plugin=tk-inter --windows-icon-from-ico=chklink.ico --output-dir=out --windows-console-mode=disable chklink.py

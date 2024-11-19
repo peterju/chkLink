@@ -7,10 +7,10 @@ alt_must: no
 # 是否檢查 http 連結
 check_http: yes
 # 定義存放檢查報告的目錄
-rpt_folder: C:\Users\Peter\Documents
+rpt_folder: 
 # 伴隨請求的標頭
 headers:
-  Accept: 
+  Accept:
     text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
   Accept-Encoding: gzip, deflate, br
   Accept-Language: zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6,zh-CN;q=0.5,la;q=0.4
@@ -18,7 +18,7 @@ headers:
   Connection: keep-alive
   Cookie: _ga_SNR7NPLEYG=GS1.1.1651249603.1.0.1651250646.0; _ga_BGEHGPV3SB=GS1.1.1707539001.1.1.1707539323.0.0.0;
     _gid=GA1.3.1607128698.1707801742; _ga=GA1.1.381372473.1651249604; _ga_Q0EL30K2K5=GS1.1.1707801741.1.0.1707801770.0.0.0;
-    _ga_54MVLT2EZN=GS1.1.1707843944.5.1.1707843969.0.0.0; 
+    _ga_54MVLT2EZN=GS1.1.1707843944.5.1.1707843969.0.0.0;
     __RequestVerificationToken_L05ldFNlcnZpY2Vz0=MrnqY4BqFXwyAR3uGWq5prQZPEwGWyzIJgIpuGFLyP8hqJ6eLKM9EWlC8NVA4MZqmyjtxmWT-9ZtzrO04NCTXcM_njimY7J0_WFWHlyWtzE1
   Sec-Ch-Ua: '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"'
   Sec-Ch-Ua-Mobile: ?0
