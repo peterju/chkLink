@@ -1,4 +1,5 @@
 import json
+import random
 import re
 from pprint import pprint
 
@@ -48,3 +49,10 @@ pprint(valid_ips)
 # 將有效的 Proxy IP 寫入檔案
 with open('valid_proxy.json', 'w') as f:
     json.dump(valid_ips, f)
+
+# 使用範例：隨機選擇一個 Proxy IP
+proxy = {"https": random.choice(valid_ips)}
+print(f"\n隨機選擇的 Proxy IP：{proxy}")
+response = requests.get('http://httpbin.org/get', headers=headers, proxies=proxy)
+if response.status_code == 200:
+    print("成功")
