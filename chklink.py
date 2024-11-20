@@ -737,7 +737,7 @@ if os.path.exists('LocalVersion.yaml'):
 
 # 建立主視窗
 form = ttk.Window(themename="superhero")
-form.title(f"網頁失效連結掃描工具 Ver.{vc.get('version')}")  # 設定視窗標題
+form.title(f"網頁失效連結掃描工具 Ver.{vc.get('version', "1.0")}")  # 設定視窗標題
 form.geometry("1024x768")  # 設定視窗寬高
 form.resizable(True, True)
 # 指定行和列的權重
@@ -886,7 +886,7 @@ timeout_txt_label.grid(row=0, column=1, padx=5)
 # 建立連線逾時秒數
 timeout_txt = ttk.Entry(frame2_2, width=3)
 timeout_txt.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
-timeout_txt.insert(0, setting.get('timeout'))
+timeout_txt.insert(0, setting.get('timeout'))  # 設定預設連線逾時秒數
 
 # 建立結果存放Label
 report_dir_txt_label = ttk.Label(frame2_2, text="報告路徑")

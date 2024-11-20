@@ -7,6 +7,8 @@ test1.py
 *copy.py
 *.bak
 visited_link.yaml
+config.yaml
+*copy.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
