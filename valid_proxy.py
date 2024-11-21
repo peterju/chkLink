@@ -54,6 +54,7 @@ for ip in proxy_ips:
 print("\n有效的 Proxy IP：")
 if valid_ips:
     pprint(valid_ips)
+    print(f"共 {len(valid_ips)} 個")
 
 # 將有效的 Proxy IP 寫入檔案
 with open('valid_proxy.json', 'w') as f:
