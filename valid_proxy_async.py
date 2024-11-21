@@ -1,9 +1,10 @@
+import asyncio
 import json
 import random
 import re
-import asyncio
-import aiohttp
 from pprint import pprint
+
+import aiohttp
 
 # 加入 User-Agent
 headers = {
@@ -24,12 +25,14 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
 }
 
+
 async def fetch_proxies():
     async with aiohttp.ClientSession() as session:
         async with session.get("https://www.sslproxies.org/", headers=headers) as response:
             text = await response.text()
             proxy_ips = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+', text)  # 「\d+」代表數字一個位數以上
             return proxy_ips
+
 
 async def check_proxy(session, ip):
     try:
@@ -41,30 +44,41 @@ async def check_proxy(session, ip):
         print(f"使用 Proxy IP：{ip} 失敗, 錯誤訊息：{e}")
     return None
 
+
 async def main():
+    # 從 valid_proxy.json 讀取之前的有效 Proxy IP
+    try:
+        with open('valid_proxy.json', 'r') as f:
+            valid_ips = set(json.load(f))
+    except FileNotFoundError:
+        valid_ips = set()
+
     proxy_ips = await fetch_proxies()
-    valid_ips = []  # 儲存有效的 Proxy IP
     async with aiohttp.ClientSession() as session:
         tasks = [check_proxy(session, ip) for ip in proxy_ips]
         results = await asyncio.gather(*tasks)
-        valid_ips = [ip for ip in results if ip]
+        valid_ips.update(ip for ip in results if ip)
 
     # 輸出有效的 Proxy IP
     print("\n有效的 Proxy IP：")
-    pprint(valid_ips)
+    if valid_ips:
+        pprint(valid_ips)
 
     # 將有效的 Proxy IP 寫入檔案
     with open('valid_proxy.json', 'w') as f:
-        json.dump(valid_ips, f)
+        json.dump(list(valid_ips), f)
 
     # 使用範例：隨機選擇一個 Proxy IP
     if valid_ips:
-        proxy = {"https": f"http://{random.choice(valid_ips)}"}
+        proxy = {"https": f"http://{random.choice(list(valid_ips))}"}
         print(f"\n隨機選擇的 Proxy IP：{proxy}")
         async with aiohttp.ClientSession() as session:
             async with session.get('http://httpbin.org/get', headers=headers, proxy=proxy['https']) as response:
                 if response.status == 200:
                     print("成功")
+    else:
+        print("沒有有效的 Proxy IP 可供選擇")
 
-# 執行異步任務
+
+# 執行非同步任務
 asyncio.run(main())

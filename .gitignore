@@ -9,6 +9,7 @@ test1.py
 visited_link.yaml
 config.yaml
 *copy.*
+*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

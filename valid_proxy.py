@@ -23,11 +23,19 @@ headers = {
     'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
 }
+
+# 從 valid_proxy.json 讀取之前的有效 Proxy IP
+try:
+    with open('valid_proxy.json', 'r') as f:
+        valid_ips = set(json.load(f))
+except FileNotFoundError:
+    valid_ips = set()
+
 response = requests.get("https://www.sslproxies.org/", headers=headers)
 
 proxy_ips = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+', response.text)  # 「\d+」代表數字一個位數以上
 
-valid_ips = []  # 儲存有效的 Proxy IP
+# 測試新的 Proxy IP 並更新 valid_ips
 for ip in proxy_ips:
     try:
         response = requests.get(
@@ -38,21 +46,25 @@ for ip in proxy_ips:
         )
         if response.status_code == 200:
             print(f"使用 Proxy IP：{ip} 成功")
-            valid_ips.append(ip)
+            valid_ips.add(ip)
     except Exception as e:
         print(f"使用 Proxy IP：{ip} 失敗, 錯誤訊息：{e}")
 
 # 輸出有效的 Proxy IP
 print("\n有效的 Proxy IP：")
-pprint(valid_ips)
+if valid_ips:
+    pprint(valid_ips)
 
 # 將有效的 Proxy IP 寫入檔案
 with open('valid_proxy.json', 'w') as f:
-    json.dump(valid_ips, f)
+    json.dump(list(valid_ips), f)
 
 # 使用範例：隨機選擇一個 Proxy IP
-proxy = {"https": random.choice(valid_ips)}
-print(f"\n隨機選擇的 Proxy IP：{proxy}")
-response = requests.get('http://httpbin.org/get', headers=headers, proxies=proxy)
-if response.status_code == 200:
-    print("成功")
+if valid_ips:
+    proxy = {"https": random.choice(list(valid_ips))}
+    print(f"\n隨機選擇的 Proxy IP：{proxy}")
+    response = requests.get('http://httpbin.org/get', headers=headers, proxies=proxy)
+    if response.status_code == 200:
+        print("成功")
+else:
+    print("沒有有效的 Proxy IP 可供選擇")
