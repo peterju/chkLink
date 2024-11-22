@@ -36,7 +36,8 @@ async def fetch_proxies():
 
 async def check_proxy(session, ip):
     try:
-        async with session.get('http://httpbin.org/get', headers=headers, proxy=f'http://{ip}', timeout=5) as response:
+        proxy = {"https": f"https://{ip}"}
+        async with session.get('http://httpbin.org/get', headers=headers, proxy=proxy['https'], timeout=5) as response:
             if response.status == 200:
                 print(f"使用 Proxy IP：{ip} 成功")
                 return ip
@@ -53,7 +54,10 @@ async def main():
     except FileNotFoundError:
         valid_ips = set()
 
+    # 取得新的 Proxy IP
     proxy_ips = await fetch_proxies()
+    print(f"共取得{len(proxy_ips)} 個 Proxy IP")
+
     async with aiohttp.ClientSession() as session:
         tasks = [check_proxy(session, ip) for ip in proxy_ips]
         results = await asyncio.gather(*tasks)
@@ -71,12 +75,16 @@ async def main():
 
     # 使用範例：隨機選擇一個 Proxy IP
     if valid_ips:
-        proxy = {"https": f"http://{random.choice(list(valid_ips))}"}
+        proxy = {"https": f"https://{random.choice(list(valid_ips))}"}
         print(f"\n隨機選擇的 Proxy IP：{proxy}")
-        async with aiohttp.ClientSession() as session:
-            async with session.get('http://httpbin.org/get', headers=headers, proxy=proxy['https']) as response:
-                if response.status == 200:
-                    print("成功")
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get('http://httpbin.org/get', headers=headers, proxy=proxy['https']) as response:
+                    if response.status == 200:
+                        print("成功")
+        except Exception as e:
+            print(f"使用 Proxy IP：{proxy['https']} 失敗, 錯誤訊息：{e}")
+        return None
     else:
         print("沒有有效的 Proxy IP 可供選擇")
 

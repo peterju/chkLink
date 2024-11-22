@@ -31,9 +31,10 @@ try:
 except FileNotFoundError:
     valid_ips = set()
 
+# 取得新的 Proxy IP
 response = requests.get("https://www.sslproxies.org/", headers=headers)
-
 proxy_ips = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+', response.text)  # 「\d+」代表數字一個位數以上
+print(f"共取得{len(proxy_ips)} 個 Proxy IP")
 
 # 測試新的 Proxy IP 並更新 valid_ips
 for ip in proxy_ips:
@@ -41,7 +42,7 @@ for ip in proxy_ips:
         response = requests.get(
             'http://httpbin.org/get',
             headers=headers,
-            proxies={'http': ip, 'https': ip},
+            proxies={'https': ip},
             timeout=5,
         )
         if response.status_code == 200:
