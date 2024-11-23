@@ -43,6 +43,8 @@ async def check_proxy(session, ip):
             if response.status == 200:
                 print(f"使用 Proxy IP：{ip} 成功")
                 return ip
+            else:
+                print(f"使用 Proxy IP：{ip} 失敗")
     except Exception as e:
         print(f"使用 Proxy IP：{ip} 失敗, 錯誤訊息：{e}")
     return None
@@ -60,10 +62,13 @@ async def main():
     proxy_ips = await fetch_proxies()
     print(f"共取得{len(proxy_ips)} 個 Proxy IP")
 
+    # 將新的 Proxy IP 與之前的合併
+    valid_ips.update(proxy_ips)
+
     async with aiohttp.ClientSession() as session:
-        tasks = [check_proxy(session, ip) for ip in proxy_ips]
-        results = await asyncio.gather(*tasks)
-        valid_ips.update(ip for ip in results if ip)
+        tasks = [check_proxy(session, ip) for ip in list(valid_ips)]
+        results = await asyncio.gather(*tasks)  # 等待所有非同步任務完成
+        valid_ips = set(ip for ip in results if ip)  # 從結果中取出有效的 Proxy IP 並轉換為集合，並更新 valid_ips
 
     # 輸出有效的 Proxy IP
     print("\n有效的 Proxy IP：")

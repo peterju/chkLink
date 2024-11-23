@@ -36,19 +36,26 @@ response = requests.get("https://www.sslproxies.org/", headers=headers)
 proxy_ips = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+', response.text)  # 「\d+」代表數字一個位數以上
 print(f"共取得{len(proxy_ips)} 個 Proxy IP")
 
+# 將新的 Proxy IP 與之前的合併
+valid_ips.update(proxy_ips)
+
 # 測試新的 Proxy IP 並更新 valid_ips
-for ip in proxy_ips:
+for ip in list(valid_ips):  # 將集合轉換為列表進行迭代
     try:
         response = requests.get(
             'http://httpbin.org/get',
             headers=headers,
-            proxies={'https': ip},
+            proxies={'http': f'http://{ip}', 'https': f'http://{ip}'},
             timeout=5,
         )
         if response.status_code == 200:
             print(f"使用 Proxy IP：{ip} 成功")
-            valid_ips.add(ip)
+        else:
+            # 移除失效的 Proxy IP
+            valid_ips.remove(ip)
+            print(f"使用 Proxy IP：{ip} 失敗")
     except Exception as e:
+        valid_ips.remove(ip)
         print(f"使用 Proxy IP：{ip} 失敗, 錯誤訊息：{e}")
 
 # 輸出有效的 Proxy IP
@@ -63,10 +70,15 @@ with open('valid_proxy.json', 'w') as f:
 
 # 使用範例：隨機選擇一個 Proxy IP
 if valid_ips:
-    proxy = {"https": random.choice(list(valid_ips))}
+    proxy = f"http://{random.choice(list(valid_ips))}"
     print(f"\n隨機選擇的 Proxy IP：{proxy}")
-    response = requests.get('http://httpbin.org/get', headers=headers, proxies=proxy)
-    if response.status_code == 200:
-        print("成功")
+    try:
+        response = requests.get(
+            'http://httpbin.org/get', headers=headers, proxies={"http": proxy, "https": proxy}, timeout=5
+        )
+        if response.status_code == 200:
+            print("成功")
+    except Exception as e:
+        print(f"使用 Proxy IP：{proxy} 失敗, 錯誤訊息：{e}")
 else:
     print("沒有有效的 Proxy IP 可供選擇")
