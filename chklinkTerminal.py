@@ -62,6 +62,7 @@ def is_valid_link(base_url, link, link_text="") -> bool:
             else:
                 response = requests.get(full_url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True, verify=False)
             status = str(response.status_code)  # 取得狀態碼
+            content_length = len(response.content)  # 取得內容長度
             real_url = response.url  # 取得網頁的實際連結, 避免重定向造成誤判
             domain1 = urlparse(full_url).netloc  # 取得原始連結的網域
             domain2 = urlparse(real_url).netloc  # 取得實際連結的網域
@@ -73,6 +74,8 @@ def is_valid_link(base_url, link, link_text="") -> bool:
                         full_url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=False, verify=False
                     )
                 status = f'200 重定向：{str(response.status_code)} 到 {real_url}'  # 設定狀態
+            if status == '200' and content_length == 0:  # 若狀態碼為 200 但內容長度為 0
+                status = "200 (內容為空)"
         except requests.exceptions.ConnectTimeout as e:
             status = f"連線逾時：{link}  錯誤訊息：{e}"
         except requests.exceptions.ConnectionError as e:
@@ -94,7 +97,11 @@ def is_valid_link(base_url, link, link_text="") -> bool:
         if '連線逾時' in status or '無法連線至此網頁' in status:
             try:
                 browser.get(full_url)  # 用瀏覽器打開網頁
-                status = f"200 改以瀏覽器自動化測試開啟成功，原訊息：{status}"
+                page_source = browser.page_source
+                if len(page_source.strip()) == 0:
+                    status = f"200 改以瀏覽器自動化測試開啟成功，但內容為空，原訊息：{status}"
+                else:
+                    status = f"200 改以瀏覽器自動化測試開啟成功，原訊息：{status}"
             except WebDriverException:
                 pass
         if status == "403":
@@ -153,12 +160,8 @@ def get_links(url) -> tuple:
             )  # 使用 BeautifulSoup 解析網頁內容
             logger.info(f"網頁於前端重新導向至：{client_url}")
         all_links = []  # 取得所有的連結
-        internal_links, external_links, no_alt_links, http_links = (
-            [],
-            [],
-            [],
-            [],
-        )  # 初始化內部連結、外部連結、沒有 alt 的連結與 HTTP 連結
+        # 初始化內部連結、外部連結、沒有 alt 的連結與 HTTP 連結
+        internal_links, external_links, no_alt_links, http_links = [], [], [], []
 
         for tag in soup.find_all(href=True):  # 找到所有具有 href 屬性的標籤
             link = tag.get('href').strip()
@@ -249,14 +252,17 @@ def queued_link_check(start_url, depth_limit=1) -> list:
             error_internal_links = []  # 存放錯誤的內部連結
             for link, link_text in internal_links:
                 status = is_valid_link(url, link, link_text)  # 檢查連結是否有效
-                if '200' not in status:  # 若狀態碼不是 200
+                if '200' not in status or '內容為空' in status:  # 若狀態碼不是 200 或內容為空
                     error_internal_links.append((link, status, link_text))  # 將錯誤的連結加入存放錯誤的內部連結
             error_external_links = []  # 存放錯誤的外部連結
             for link, link_text in external_links:  # 檢查外部連結是否有效
                 status = is_valid_link(url, link, link_text)  # 檢查連結是否有效
                 if '200' not in status:  # 若狀態碼不是 200
-                    error_external_links.append((link, status, link_text))  # 將錯誤的連結加入存放錯誤的外部連結
-
+                    error_external_links.append((link, status, link_text))  # 將錯誤的連結加入存放錯誤的內部連結
+                elif '內容為空' in status:
+                    error_external_links.append(
+                        (link, status, link_text)
+                    )  # 將回應200，但內容為空的連結加入存放錯誤的內部連結
             error_links = []  # 存放此次所有 url 錯誤的連結
             # 將錯誤的內部連結加入所有錯誤連結集合
             error_links.extend(error_internal_links) if error_internal_links else error_links

@@ -45,7 +45,8 @@ for ip in list(valid_ips):  # 將集合轉換為列表進行迭代
         response = requests.get(
             'http://httpbin.org/get',
             headers=headers,
-            proxies={'http': f'http://{ip}', 'https': f'http://{ip}'},
+            # proxies={'http': f'http://{ip}', 'https': f'http://{ip}'},
+            proxies={'https': f'http://{ip}'},
             timeout=5,
         )
         if response.status_code == 200:
@@ -74,7 +75,7 @@ if valid_ips:
     print(f"\n隨機選擇的 Proxy IP：{proxy}")
     try:
         response = requests.get(
-            'http://httpbin.org/get', headers=headers, proxies={"http": proxy, "https": proxy}, timeout=5
+            'http://httpbin.org/get', headers=headers, proxies={"https": proxy}, timeout=5
         )
         if response.status_code == 200:
             print("成功")
