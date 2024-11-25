@@ -45,8 +45,8 @@ for ip in list(valid_ips):  # 將集合轉換為列表進行迭代
         response = requests.get(
             'http://httpbin.org/get',
             headers=headers,
-            # proxies={'http': f'http://{ip}', 'https': f'http://{ip}'},
-            proxies={'https': f'http://{ip}'},
+            # proxies={'http': ip, 'https': ip},
+            proxies={'https': ip},
             timeout=5,
         )
         if response.status_code == 200:
@@ -71,7 +71,7 @@ with open('valid_proxy.json', 'w') as f:
 
 # 使用範例：隨機選擇一個 Proxy IP
 if valid_ips:
-    proxy = f"http://{random.choice(list(valid_ips))}"
+    proxy = random.choice(list(valid_ips))
     print(f"\n隨機選擇的 Proxy IP：{proxy}")
     try:
         response = requests.get(
