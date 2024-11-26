@@ -1,3 +1,4 @@
+# 透過 Proxy IP 來源網站取得 Proxy IP，並測試 Proxy IP 是否有效
 import json
 import random
 import re
@@ -8,7 +9,7 @@ import requests
 SOURCE = "https://www.sslproxies.org/"  # Proxy IP 來源網站 （https）
 TARGET = "http://httpbin.org/get"  # 測試網站 （http）
 
-# 加入 User-Agent
+# 設定 HTTP 標頭
 headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
     'Accept-Encoding': 'gzip, deflate, br',
@@ -35,14 +36,15 @@ except FileNotFoundError:
     valid_ips = set()
 
 # 取得新的 Proxy IP
-response = requests.get(SOURCE, headers=headers)
-proxy_ips = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+', response.text)  # 「\d+」代表數字一個位數以上
+response = requests.get(SOURCE, headers=headers)  # 取得網頁內容
+# 使用正規表達式取得 Proxy IP：「\d+」代表數字一個位數以上
+proxy_ips = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+', response.text)
 print(f"自 {SOURCE} 共取得 {len(proxy_ips)} 個 Proxy IP")
 
-# 將新的 Proxy IP 與之前的合併
+# valid_ips 加入新取得的 Proxy IP
 valid_ips.update(proxy_ips)
 
-# 測試新的 Proxy IP 並更新 valid_ips
+# 測試 valid_ips 中的 Proxy IP 是否有效
 for ip in list(valid_ips):  # 將集合轉換為列表進行迭代
     try:
         response = requests.get(
@@ -72,7 +74,7 @@ if valid_ips:
 with open('valid_proxy.json', 'w') as f:
     json.dump(list(valid_ips), f)
 
-# 使用範例：隨機選擇一個 Proxy IP
+# 使用範例：從 valid_proxy.json 讀取有效的 Proxy IP 並隨機選擇一個 Proxy IP 進行測試
 if valid_ips:
     proxy = random.choice(list(valid_ips))
     print(f"\n隨機選擇的 Proxy IP：{proxy}")
