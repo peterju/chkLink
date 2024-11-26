@@ -5,6 +5,9 @@ from pprint import pprint
 
 import requests
 
+SOURCE = "https://www.sslproxies.org/"  # Proxy IP 來源網站 （https）
+TARGET = "http://httpbin.org/get"  # 測試網站 （http）
+
 # 加入 User-Agent
 headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -13,7 +16,7 @@ headers = {
     'Cache-Control': 'max-age=0',
     'Connection': 'keep-alive',
     'Cookie': '_ga_SNR7NPLEYG=GS1.1.1651249603.1.0.1651250646.0; _ga_BGEHGPV3SB=GS1.1.1707539001.1.1.1707539323.0.0.0; _gid=GA1.3.1607128698.1707801742; _ga=GA1.1.381372473.1651249604; _ga_Q0EL30K2K5=GS1.1.1707801741.1.0.1707801770.0.0.0; _ga_54MVLT2EZN=GS1.1.1707843944.5.1.1707843969.0.0.0; __RequestVerificationToken_L05ldFNlcnZpY2Vz0=MrnqY4BqFXwyAR3uGWq5prQZPEwGWyzIJgIpuGFLyP8hqJ6eLKM9EWlC8NVA4MZqmyjtxmWT-9ZtzrO04NCTXcM_njimY7J0_WFWHlyWtzE1',
-    'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+    'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="131", "Chromium";v="131"',
     'Sec-Ch-Ua-Mobile': '?0',
     'Sec-Platform': '"Windows"',
     'Sec-Fetch-Dest': 'document',
@@ -21,7 +24,7 @@ headers = {
     'Sec-Fetch-Site': 'none',
     'Sec-Fetch-User': '?1',
     'Upgrade-Insecure-Requests': '1',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 }
 
 # 從 valid_proxy.json 讀取之前的有效 Proxy IP
@@ -32,9 +35,9 @@ except FileNotFoundError:
     valid_ips = set()
 
 # 取得新的 Proxy IP
-response = requests.get("https://www.sslproxies.org/", headers=headers)
+response = requests.get(SOURCE, headers=headers)
 proxy_ips = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+', response.text)  # 「\d+」代表數字一個位數以上
-print(f"共取得{len(proxy_ips)} 個 Proxy IP")
+print(f"自 {SOURCE} 共取得 {len(proxy_ips)} 個 Proxy IP")
 
 # 將新的 Proxy IP 與之前的合併
 valid_ips.update(proxy_ips)
@@ -43,7 +46,7 @@ valid_ips.update(proxy_ips)
 for ip in list(valid_ips):  # 將集合轉換為列表進行迭代
     try:
         response = requests.get(
-            'http://httpbin.org/get',
+            TARGET,
             headers=headers,
             # proxies={'http': ip, 'https': ip},
             proxies={'https': ip},
@@ -75,10 +78,10 @@ if valid_ips:
     print(f"\n隨機選擇的 Proxy IP：{proxy}")
     try:
         response = requests.get(
-            'http://httpbin.org/get', headers=headers, proxies={"https": proxy}, timeout=5
+            TARGET, headers=headers, proxies={"https": proxy}, timeout=5
         )
         if response.status_code == 200:
-            print("成功")
+            pprint(response.json())  # 輸出網頁內容
     except Exception as e:
         print(f"使用 Proxy IP：{proxy} 失敗, 錯誤訊息：{e}")
 else:
