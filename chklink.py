@@ -747,7 +747,7 @@ if os.path.exists('LocalVersion.yaml'):
 
 # 建立主視窗
 form = ttk.Window(themename="superhero")
-form.title(f"網頁失效連結掃描工具 Ver.{vc.get('version', "1.0")}")  # 設定視窗標題
+form.title(f"網頁失效連結掃描工具 Ver.{vc.get('version', '1.0')}")  # 設定視窗標題
 form.geometry("1024x768")  # 設定視窗寬高
 form.resizable(True, True)
 # 指定行和列的權重
