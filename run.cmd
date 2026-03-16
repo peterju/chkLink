@@ -1,6 +1,9 @@
 @echo off
+setlocal
 cd /d "%~dp0"
-if not defined VIRTUAL_ENV (
-	call .venv\Scripts\activate
-)
-python chklink.py
+
+set "PYTHON_EXE=python"
+if exist ".venv\Scripts\python.exe" set "PYTHON_EXE=%~dp0.venv\Scripts\python.exe"
+
+echo ±Ò°Ê chkLink GUI...
+"%PYTHON_EXE%" chklink.py

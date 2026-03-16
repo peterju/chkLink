@@ -2,6 +2,8 @@
 history/
 deploy/
 out/
+.build-cache/
+nuitka-crash-report.xml
 test.py
 test1.py
 *copy.py
