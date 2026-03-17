@@ -9,7 +9,7 @@
 - 額外標示不安全的 `http://` 連結
 - 檢查圖片是否缺少 `alt` 屬性
 - 產生 `.xlsx` 報告與 `.log` 紀錄
-- 支援版本檢查與執行檔自我更新
+- 支援以 `standalone + Inno Setup` 方式封裝成安裝程式
 
 ## 掃描範圍定義
 
@@ -33,8 +33,10 @@
 - `LocalVersion.yaml`：本機版本資訊
 - `run.cmd`：啟動 GUI
 - `make.cmd`：編譯 GUI 執行檔
-- `make1.cmd`：產生部署更新檔
-- `update.cmd`：更新時替換執行檔
+- `make_setup.ps1`：產生 Inno Setup 安裝程式
+- `chklink_setup.iss`：Inno Setup 安裝腳本
+- `make1.cmd`：包裝腳本，會轉呼叫 `make_setup.ps1`
+- `update.cmd`：初始化資源與舊版替換式更新使用的批次檔
 - `pycert.ps1`：對產生的執行檔做程式簽章
 
 ## 執行方式
@@ -61,14 +63,16 @@ python chklinkTerminal.py
 
 ### 1. 啟動與初始化
 
-GUI 與 CLI 啟動時都會：
+GUI 啟動時會：
 
-- 建立 `update.cmd`，若檔案不存在就自動補齊
+- 若缺少 `config.yaml`，會先嘗試下載 `resources.7z` 補齊初始化檔案
+- 若下載失敗，才退回本機建立預設檔案
 - 讀取 `config.yaml`
-- 若首次執行缺少 `config.yaml` 或 `LocalVersion.yaml`，會在本機自動建立預設檔案
 - 若存在則載入 `visited_link.yaml`；此檔為成功連結快取，通常會在完成一次掃描並儲存結果後建立或更新
 
-其中只有 GUI 版會進一步建立視窗、分頁與設定控制項。
+若是透過 Inno Setup 安裝，安裝程式本身就會先放好 `config.yaml`、`LocalVersion.yaml` 與 `update.cmd`，因此正常情況下不會在第一次啟動時觸發 `resources.7z` 初始化下載。
+
+CLI 版 `chklinkTerminal.py` 不參與初始化資源下載與安裝程式更新流程；若缺少 `config.yaml` 或 `LocalVersion.yaml`，仍會依既有邏輯在本機建立 fallback 檔案。
 
 ### 2. 掃描流程
 
@@ -211,89 +215,141 @@ make.cmd
 
 - 優先使用 `.venv\Scripts\python.exe`
 - 檢查 `nuitka`、`chklink.py`、`chklink.ico` 是否存在
+- 檢查 7-Zip 是否可用
+- 檢查 `config.yaml-default`、`LocalVersion.yaml`、`update.cmd` 是否存在
 - 自動從 `chklink_config.py` 讀取 `APP_NAME` 與 `DEFAULT_APP_VERSION`
 - 先依 `DEFAULT_APP_VERSION` 重寫 `LocalVersion.yaml`
 - 清除舊的 `out`、`build`
-- 將 `icon\folder.png` 一起打包進單檔執行檔
+- 將 `icon\folder.png` 一起打包進 standalone 資料夾
 - 將版本資訊帶入執行檔屬性
-- 用 Nuitka 以 `--onefile --standalone` 將 `chklink.py` 打包成單檔 GUI 程式
-- 產出 `out\chklink.exe`
+- 用 Nuitka 以 `--standalone` 將 `chklink.py` 打包成 GUI 程式資料夾
+- 另外產生 `resources.7z`
+  - 內容包含 `config.yaml-default` 改名後的 `config.yaml`、`LocalVersion.yaml`、`update.cmd`
+- 產出 `out\chklink.dist\chklink.exe`
 
-## 產生更新部署檔
+目前正式建議的打包方式是 `standalone`，因為實測 `onefile` 容易在部分電腦被防毒或 Windows 安全機制攔截。
+
+## 產生安裝檔
+
+### 安裝 Inno Setup 與繁體中文語系
+
+1. 先安裝 Inno Setup 6。
+2. 到 Inno Setup 官方翻譯頁下載繁體中文語系：
+   - [Inno Setup Translations](https://jrsoftware.org/files/istrans/)
+3. 在頁面中找到 `Chinese (Traditional)`，下載 `ChineseTraditional.isl`。
+4. 將 `ChineseTraditional.isl` 放到 Inno Setup 安裝目錄下的 `Languages` 資料夾，例如：
+   - `C:\Program Files (x86)\Inno Setup 6\Languages\ChineseTraditional.isl`
+
+`make_setup.ps1` 目前會先檢查這個語系檔是否存在；若不存在，會直接提示錯誤並停止。
 
 執行：
+
+```powershell
+.\make_setup.ps1
+```
+
+`make_setup.ps1` 會：
+
+- 讀取 `chklink_config.py` 的 `APP_NAME` 與 `DEFAULT_APP_VERSION`
+- 自動重寫 `chklink_setup.iss` 內的版本與路徑設定
+- 呼叫 Inno Setup 6 的 `ISCC.exe`
+- 將 `out\chklink.dist` 與必要初始化檔一起打包成安裝程式
+- 使用 `ChineseTraditional.isl` 產生繁體中文安裝介面
+- 產出 `installer\chklink_setup.exe`
+
+因此若版本從 `1.4` 改成 `1.5`，只要先更新 `chklink_config.py`，再重新執行 `make_setup.ps1`，安裝檔版本資訊就會同步更新。
+
+## 初始化資源與安裝方式
+
+目前正式發佈路線已改為：
+
+- `make.cmd`：產生 `standalone` 執行資料夾與 `deploy\resources.7z`
+- `make_setup.ps1`：再將 `standalone` 資料夾封裝成 `installer\chklink_setup.exe`
+
+這樣設計的原因是：過往實測發現，若 `chklink.exe` 一啟動就立刻在本機自動建立初始化檔案，或採用 `onefile` 自解壓模式，較容易被防毒或 Windows 安全機制視為可疑行為。因此目前改成：
+
+- 正式安裝版由 Inno Setup 先把必要檔案安裝到程式目錄
+- 直接執行原始碼或未經安裝版時，才在 `config.yaml` 缺少時優先下載 `resources.7z`
+- 只有下載失敗時，才退回本機自動建立 `config.yaml`
+
+`resources.7z` 由 `make.cmd` 產生，內容為：
+
+- `config.yaml`
+- `LocalVersion.yaml`
+- `update.cmd`
+
+其中 `config.yaml` 的來源是 `config.yaml-default`，只是打包時改名，方便首次初始化直接使用。
+
+## 升級方式
+
+目前 GUI 裡的「升級說明」按鈕只會提示使用者改用新版安裝程式，不再提供程式內自動下載與替換執行檔的更新流程。
+
+原因是目前正式發佈方式已改為：
+
+- `standalone` 多檔案結構
+- 再由 Inno Setup 封裝為 `setup.exe`
+
+這代表真正要更新的已不只是單一 `chklink.exe`，而是整個程式目錄中的多個檔案。若仍沿用舊的：
+
+- `update.7z`
+- `RemoteVersion.yaml`
+
+只替換單一 `exe` 的方式，容易出現下列問題：
+
+- `standalone` 目錄內其他 DLL、模組或資料檔沒有同步更新
+- 安裝位置若在 `Program Files`，程式內自動覆蓋檔案常需要額外權限
+- Inno Setup 安裝版建立的捷徑、解除安裝資訊與安裝紀錄也不會同步更新
+
+正式建議做法是：
+
+1. 重新執行 `make.cmd`
+2. 視需要執行 `pycert.ps1` 對 `out\chklink.dist\chklink.exe` 簽章
+3. 再執行 `make_setup.ps1`
+4. 將新的 `installer\chklink_setup.exe` 提供給使用者重新安裝或覆蓋安裝
+
+若習慣沿用舊入口，也可以直接執行：
 
 ```cmd
 make1.cmd
 ```
 
-`make1.cmd` 會：
+目前 `make1.cmd` 已改為包裝腳本，會先詢問是否執行 `pycert.ps1` 進行簽章，之後再轉呼叫 `powershell -ExecutionPolicy Bypass -File ".\make_setup.ps1"`，方便從既有批次流程延續使用。
 
-1. 檢查 `out\chklink.exe` 是否已存在
-2. 檢查 7-Zip 是否安裝於 `%ProgramFiles%\7-Zip\7z.exe`
-3. 複製 `out\chklink.exe` 為 `chklink_upd.exe`
-4. 打包 `update.7z`
-   - 內容包含 `chklink_upd.exe`
-5. 複製 `LocalVersion.yaml` 成 `deploy\RemoteVersion.yaml`
-6. 將以上更新檔放到 `deploy\`
+### 是否還能沿用 `update.7z` 與 `RemoteVersion.yaml`
 
-完成後主要部署產物為：
+可以，但前提是你願意另外重做一套專屬於 `standalone` 的更新流程，而不能直接沿用目前舊的單一執行檔替換邏輯。
 
-- `deploy\update.7z`
-- `deploy\RemoteVersion.yaml`
+若未來真的想保留「程式內更新」功能，至少要同時處理：
 
-## 其他電腦如何更新
+- 更新包改為包含整個 `standalone` 需要更新的檔案，而不只是 `chklink.exe`
+- `update.cmd` 要能在關閉程式後批次替換多個檔案
+- 需要排除或保留使用者資料，例如：
+  - `config.yaml`
+  - `visited_link.yaml`
+- 若安裝目錄在 `Program Files`，可能還要額外處理權限或改採每使用者安裝路徑
 
-GUI 裡的「檢查更新」按鈕會呼叫 `run_update()`，更新流程如下：
+所以結論是：
 
-1. 先下載遠端的 `RemoteVersion.yaml`
-2. 與本機 `LocalVersion.yaml` 比對版本號
-3. 若遠端版本較新，下載 `update.7z`
-4. 解壓出 `chklink_upd.exe`
-5. 用 `update.cmd` 執行替換：
-   - 關閉現有 `chklink.exe`
-   - 將舊版改名為 `chklink.exe.old`
-   - 將 `chklink_upd.exe` 改名為 `chklink.exe`
-   - 啟動新版本
+- 技術上不是完全不能做
+- 但那會是一套新的 `standalone` 更新設計
+- 在目前這個版本，重新提供新版 `setup.exe` 讓使用者覆蓋安裝，仍是最單純也最穩定的方式
 
-### 更新方式的本質
+### GUI 與 CLI 的發佈定位
 
-這套更新不是差分更新，也不是安裝包更新，而是：
-
-- 由程式自行下載壓縮檔
-- 解壓出新的單一執行檔
-- 以批次檔方式做「檔案替換式更新」
-
-所以要讓其他電腦能更新，必須把下列檔案放到程式預期下載的位置：
-
-- `RemoteVersion.yaml`
-- `update.7z`
-
-目前首次啟動已不再依賴 `resources.7z`，因為：
-
-- `folder.png` 會隨執行檔一起打包
-- `LocalVersion.yaml` 若不存在，程式會在本機自動建立
-- `config.yaml` 若不存在，也會在本機自動建立預設檔案
-
-### GUI 與 CLI 的更新定位
-
-- 目前正式發佈、打包與自動更新流程，都是以 GUI 版 `chklink.py` / `chklink.exe` 為主。
-- CLI 版 `chklinkTerminal.py` 會共用建立 `update.cmd`、`config.yaml`、`LocalVersion.yaml` 等初始化流程，但目前不提供獨立的打包與自動更新機制。
-- 若未來要發佈 CLI 執行檔，建議另外規劃 `make_cli.cmd` 與 CLI 專用的版本更新流程，避免和 GUI 發佈產物混用。
+- 目前正式發佈、打包、簽章與安裝流程，都是以 GUI 版 `chklink.py` / `chklink.exe` 為主。
+- CLI 版 `chklinkTerminal.py` 不參與 Inno Setup 安裝流程與 GUI 升級提示，目前仍以原始碼執行為主。
+- 若未來要發佈 CLI 執行檔，建議另外規劃 CLI 專用的安裝與更新方式，避免與 GUI 發佈產物混用。
 
 ## 為什麼需要 `pycert.ps1`
 
-部分電腦或防毒產品會把新編譯出的 `out\chklink.exe` 視為可疑檔案，甚至直接隔離或刪除。`pycert.ps1` 是先前用來降低這類問題的簽章腳本。
+部分電腦或防毒產品會把新編譯出的 `chklink.exe` 視為可疑檔案，甚至直接隔離或刪除。`pycert.ps1` 是用來降低這類問題的簽章腳本，目前會自動優先尋找：
 
-內容如下：
-
-```powershell
-..\SignTool\x64\signtool.exe sign /sha1 089a46b557607ae3bf629b07906b8931088107f3 /fd SHA1 /t http://timestamp.sectigo.com /v out\chklink.exe
-```
+- `out\chklink.dist\chklink.exe`
+- `out\chklink.exe`
 
 它做的事情是：
 
-- 使用 `signtool.exe` 對 `out\chklink.exe` 做 Authenticode 簽章
+- 使用 `signtool.exe` 對找到的 `chklink.exe` 做 Authenticode 簽章
 - 用既有憑證指紋 `/sha1 ...` 指定簽章憑證
 - 透過 Sectigo 時間戳服務加上時間戳
 
@@ -399,16 +455,16 @@ $thumbprint = '63dc665f1795f66146cf1096d956fd797060af24'
 ### 建議流程
 
 1. 先跑 `make.cmd`
-2. 視需要執行 `pycert.ps1` 對 `out\chklink.exe` 簽章
-3. 再跑 `make1.cmd` 產生更新部署檔
-4. 將 `deploy\` 內容上傳到更新伺服器
+2. 視需要執行 `pycert.ps1` 對 `out\chklink.dist\chklink.exe` 簽章
+3. 再跑 `make_setup.ps1` 產生 `installer\chklink_setup.exe`
+4. 將新的安裝程式提供給使用者安裝或覆蓋安裝
 
 ## 已知限制
 
 - GUI 與 CLI 目前都依賴 Selenium Manager 取得可用的 ChromeDriver。
 - 若 Chrome 未安裝，或 Selenium Manager 在該環境無法正常取得 driver，Selenium 備援會失敗。
 - GUI 與 CLI 目前已共用主要掃描核心，但入口、介面與操作流程仍分開維護，修改時仍要一起確認。
-- `update.cmd` 為檔案替換式更新，若程式被防毒攔截，更新也可能失敗。
+- 若未來仍要恢復程式內自動更新，需重新設計 `standalone` 安裝版的升級方式，不宜直接沿用舊的單一執行檔替換流程。
 
 ## 編碼與換行
 
@@ -420,5 +476,5 @@ $thumbprint = '63dc665f1795f66146cf1096d956fd797060af24'
 ## 維護提醒
 
 - 還原 UTF-8 檔案時，不要使用 PowerShell 文字管線，以免繁體中文再度毀損。
-- 若調整更新流程，請同步檢查 `run_update()`、`make1.cmd`、`update.cmd`、`LocalVersion.yaml` 與遠端部署檔。
-- 若調整編譯流程，請同步確認 `make.cmd` 與 `pycert.ps1` 是否仍相容。
+- 若調整安裝流程，請同步檢查 `make.cmd`、`make_setup.ps1`、`chklink_setup.iss` 與 `pycert.ps1` 是否仍相容。
+- 若未來要重新啟用程式內更新，請先確認 GUI 文案、`run_update()`、`make1.cmd` 與 `update.cmd` 是否整體一致。

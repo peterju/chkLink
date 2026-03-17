@@ -1,40 +1,31 @@
 @echo off
+chcp 950 >nul
 setlocal
 cd /d "%~dp0"
 
-set "SEVENZIP=%ProgramFiles%\7-Zip\7z.exe"
+echo [資訊] 目前 make1.cmd 會先視需要執行 pycert.ps1，再轉呼叫 make_setup.ps1 產生安裝程式。
+choice /C YN /N /T 10 /D N /M "是否先執行 pycert.ps1 進行簽章？(10 秒後預設為 N) "
+if errorlevel 2 goto build_setup
+if errorlevel 1 goto sign_first
 
-if not exist "out\chklink.exe" (
-    echo [錯誤] 找不到 out\chklink.exe，請先執行 make.cmd。
-    exit /b 1
-)
-
-if not exist "%SEVENZIP%" (
-    echo [錯誤] 找不到 7-Zip：%SEVENZIP%
-    exit /b 1
-)
-
-if not exist "LocalVersion.yaml" (
-    echo [錯誤] 找不到 LocalVersion.yaml。
-    exit /b 1
-)
-
-copy /y "out\chklink.exe" "chklink_upd.exe" >nul
+:sign_first
+echo [資訊] 開始執行 pycert.ps1...
+powershell -ExecutionPolicy Bypass -File ".\pycert.ps1"
+chcp 950 >nul
 if errorlevel 1 (
-    echo [錯誤] 無法建立 chklink_upd.exe。
+    echo [錯誤] pycert.ps1 執行失敗。
     exit /b 1
 )
 
-"%SEVENZIP%" a -t7z "update.7z" "chklink_upd.exe"
+:build_setup
+echo [資訊] 開始執行 make_setup.ps1...
+powershell -ExecutionPolicy Bypass -File ".\make_setup.ps1"
+chcp 950 >nul
 if errorlevel 1 (
-    echo [錯誤] 無法建立 update.7z。
+    echo [錯誤] make_setup.ps1 執行失敗。
     exit /b 1
 )
 
-if not exist "deploy" mkdir "deploy"
-
-move /y "update.7z" "deploy\" >nul
-copy /y "LocalVersion.yaml" "deploy\RemoteVersion.yaml" >nul
-del /q "chklink_upd.exe"
-
-echo [完成] 更新部署檔已輸出至 deploy\
+echo [完成] 安裝檔已產生完成。
+echo [完成] 請至 installer\chklink_setup.exe 取得安裝程式。
+exit /b 0

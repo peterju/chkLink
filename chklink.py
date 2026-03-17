@@ -92,38 +92,11 @@ def ask_question_message(title: str, message: str) -> str:
 
 def run_update():
     '''更新程式'''
-
-    def update_progress_bar(block_num, block_size, total_size):
-        update_progress(block_num, block_size)
-        # if block_num == block_size:
-        #     upd_progress_show.destroy()
-
-    def wg():
-        wget.download(
-            'https://cc.ncut.edu.tw/var/file/32/1032/img/1517/RemoteVersion.yaml',
-            bar=update_progress_bar,
-        )
-        remote_ver = app_config.load_yaml('RemoteVersion.yaml')
-        local_ver = app_config.ensure_local_version(app_version=app_config.DEFAULT_APP_VERSION)
-
-        if local_ver.get('version') >= remote_ver.get('version'):
-            os.remove('RemoteVersion.yaml')
-            show_warning_message("資訊", "您的程式版本已是最新，故無需更新！")
-        else:
-            filename = wget.download(
-                'https://cc.ncut.edu.tw/var/file/32/1032/img/1517/update.7z',
-                bar=update_progress_bar,
-            )
-            with SevenZipFile(filename, 'r') as archive:
-                archive.extractall()  # 解壓縮
-            os.remove(filename)  # 刪除下載的壓縮檔案
-            os.replace('RemoteVersion.yaml', 'LocalVersion.yaml')  # 更新版本記錄
-            subprocess.run(["update.cmd"])  # 啟動更新程式
-
-    if os.path.isfile('chklink_upd.exe'):
-        os.remove('chklink_upd.exe')
-    dl_thread = threading.Thread(target=wg)
-    dl_thread.start()
+    show_warning_message(
+        "升級說明",
+        "目前正式發佈方式已改為 standalone + Inno Setup。\n"
+        "請下載並執行新版安裝程式進行升級，不再提供程式內自動更新。",
+    )
 
 
 def resource_path(*parts: str) -> str:
@@ -340,14 +313,20 @@ def save_config() -> None:
     append_log(msg, "INFO")
 # 設定全域變數
 stop_scan = False
-app_config.ensure_update_cmd()  # 建立更新程式的批次檔
 
 config_file = 'config.yaml'
+app_config.ensure_runtime_files(
+    cfg_file=config_file,
+)
 setting = app_config.read_config(config_file)  # 讀取設定檔 config.yaml，若設定檔存在則讀取，否則建立設定檔
 
 # 檢查並補充缺少的設定
 setting, updated = app_config.normalize_setting(setting, os.path.join(os.environ['USERPROFILE'], 'Documents'))
-local_version = app_config.ensure_local_version(app_version=app_config.DEFAULT_APP_VERSION)
+local_version = (
+    app_config.load_yaml('LocalVersion.yaml')
+    if os.path.exists('LocalVersion.yaml')
+    else {'version': app_config.DEFAULT_APP_VERSION}
+)
 
 # 如果有更新設定，則將更新後的設定存回設定檔
 if updated:
@@ -468,8 +447,8 @@ frame2_1.grid(row=0, column=0, padx=1, pady=1, sticky="nsew")
 # 建立儲存設定按鈕
 cfg_save_btn = ttk.Button(page2, text="儲存設定", command=save_config, bootstyle="info", cursor='hand2')
 cfg_save_btn.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
-# 建立檢查更新按鈕
-run_upd_btn = ttk.Button(page2, text="檢查更新", command=run_update, bootstyle="warning", cursor='hand2')
+# 建立升級說明按鈕
+run_upd_btn = ttk.Button(page2, text="升級說明", command=run_update, bootstyle="warning", cursor='hand2')
 run_upd_btn.grid(row=0, column=2, rowspan=2, padx=10, pady=10, sticky="nsew")
 
 # 建立檢查連結的層數Label

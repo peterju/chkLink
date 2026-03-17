@@ -1,11 +1,16 @@
 import os
+import shutil
+import tempfile
+import urllib.request
 from urllib.parse import urlparse
 
+from py7zr import SevenZipFile
 from ruamel.yaml import YAML
 
 DEFAULT_TEMPLATE_FILE = "config.yaml-default"
 DEFAULT_LOCAL_VERSION_FILE = "LocalVersion.yaml"
 DEFAULT_UPDATE_CMD_FILE = "update.cmd"
+DEFAULT_RESOURCES_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/resources.7z"
 APP_NAME = "chkLink"
 DEFAULT_APP_VERSION = "1.4"
 
@@ -97,6 +102,60 @@ def ensure_update_cmd(update_file: str = DEFAULT_UPDATE_CMD_FILE) -> None:
     ]
     with open(update_file, "w", encoding="utf-8", newline="\r\n") as file:
         file.write("\r\n".join(lines) + "\r\n")
+
+
+def download_resources(
+    resources_url: str = DEFAULT_RESOURCES_URL,
+    extract_to: str = ".",
+    required_files: list[str] | None = None,
+) -> bool:
+    """下載 resources.7z，僅補齊缺少的檔案；成功回傳 True。"""
+    fd, archive_path = tempfile.mkstemp(suffix=".7z")
+    os.close(fd)
+    temp_dir = tempfile.mkdtemp()
+    try:
+        urllib.request.urlretrieve(resources_url, archive_path)
+        with SevenZipFile(archive_path, "r") as archive:
+            archive.extractall(path=temp_dir)
+
+        if required_files is None:
+            required_files = []
+
+        for filename in required_files:
+            source_path = os.path.join(temp_dir, filename)
+            target_path = os.path.join(extract_to, filename)
+            if os.path.exists(source_path) and not os.path.exists(target_path):
+                shutil.copyfile(source_path, target_path)
+        return True
+    except Exception:
+        return False
+    finally:
+        if os.path.exists(archive_path):
+            os.remove(archive_path)
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def ensure_runtime_files(
+    cfg_file: str = "config.yaml",
+    template_file: str = DEFAULT_TEMPLATE_FILE,
+    resources_url: str = DEFAULT_RESOURCES_URL,
+) -> dict:
+    """以 config.yaml 是否存在作為初始化觸發，下載優先、建立為備援。"""
+    status = {
+        "downloaded_resources": False,
+        "created_config": False,
+    }
+    if not os.path.exists(cfg_file):
+        status["downloaded_resources"] = download_resources(
+            resources_url=resources_url,
+            required_files=[cfg_file],
+        )
+
+    if not os.path.exists(cfg_file):
+        create_config(cfg_file, template_file=template_file)
+        status["created_config"] = True
+
+    return status
 
 
 def create_config(cfg_file: str, template_file: str = DEFAULT_TEMPLATE_FILE) -> dict:

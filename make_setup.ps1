@@ -1,0 +1,137 @@
+$ErrorActionPreference = 'Stop'
+
+$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$configPath = Join-Path $projectRoot 'chklink_config.py'
+$issPath = Join-Path $projectRoot 'chklink_setup.iss'
+$distDir = Join-Path $projectRoot 'out\chklink.dist'
+$configDefaultPath = Join-Path $projectRoot 'config.yaml-default'
+$localVersionPath = Join-Path $projectRoot 'LocalVersion.yaml'
+$updateCmdPath = Join-Path $projectRoot 'update.cmd'
+$iconPath = Join-Path $projectRoot 'chklink.ico'
+$installerDir = Join-Path $projectRoot 'installer'
+
+if (-not (Test-Path -LiteralPath $configPath)) {
+    Write-Host '[ERROR] chklink_config.py not found.' -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $distDir)) {
+    Write-Host '[ERROR] out\chklink.dist not found. Run make.cmd first.' -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $configDefaultPath)) {
+    Write-Host '[ERROR] config.yaml-default not found.' -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $localVersionPath)) {
+    Write-Host '[ERROR] LocalVersion.yaml not found. Run make.cmd first.' -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $updateCmdPath)) {
+    Write-Host '[ERROR] update.cmd not found.' -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $iconPath)) {
+    Write-Host '[ERROR] chklink.ico not found.' -ForegroundColor Red
+    exit 1
+}
+
+$pythonExe = Join-Path $projectRoot '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $pythonExe)) {
+    $pythonExe = 'python'
+}
+
+$appName = & $pythonExe -c "import chklink_config as c; print(c.APP_NAME)"
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appName)) {
+    Write-Host '[ERROR] Unable to read APP_NAME from chklink_config.py.' -ForegroundColor Red
+    exit 1
+}
+
+$appVersion = & $pythonExe -c "import chklink_config as c; print(c.DEFAULT_APP_VERSION)"
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appVersion)) {
+    Write-Host '[ERROR] Unable to read DEFAULT_APP_VERSION from chklink_config.py.' -ForegroundColor Red
+    exit 1
+}
+
+$innoCandidates = @(
+    'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+    'C:\Program Files\Inno Setup 6\ISCC.exe'
+)
+$isccExe = $innoCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+
+if ([string]::IsNullOrWhiteSpace($isccExe)) {
+    Write-Host '[ERROR] ISCC.exe not found. Install Inno Setup 6 first.' -ForegroundColor Red
+    exit 1
+}
+
+$languageFile = Join-Path (Split-Path -Parent $isccExe) 'Languages\ChineseTraditional.isl'
+if (-not (Test-Path -LiteralPath $languageFile)) {
+    Write-Host '[ERROR] ChineseTraditional.isl not found. Put it under Inno Setup 6\Languages first.' -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $installerDir)) {
+    New-Item -ItemType Directory -Path $installerDir | Out-Null
+}
+
+$issContent = @"
+#define MyAppName "$appName"
+#define MyAppVersion "$appVersion"
+#define MyAppPublisher "$appName"
+#define MyAppExeName "chklink.exe"
+#define MyAppDistDir "$($distDir -replace '\\','\\')"
+#define MyAppConfigDefault "$($configDefaultPath -replace '\\','\\')"
+#define MyAppLocalVersion "$($localVersionPath -replace '\\','\\')"
+#define MyAppUpdateCmd "$($updateCmdPath -replace '\\','\\')"
+
+[Setup]
+AppId={{A1E42E19-0B41-4B4D-BF51-6DDE2911A0E1}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+OutputDir=$($installerDir -replace '\\','\\')
+OutputBaseFilename=chklink_setup
+Compression=lzma
+SolidCompression=yes
+WizardStyle=modern
+SetupIconFile=$($iconPath -replace '\\','\\')
+DisableProgramGroupPage=yes
+
+[Languages]
+Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional tasks:"
+
+[Files]
+Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "{#MyAppConfigDefault}"; DestDir: "{app}"; DestName: "config.yaml"; Flags: ignoreversion
+Source: "{#MyAppLocalVersion}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyAppUpdateCmd}"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+
+[Run]
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+"@
+
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($issPath, $issContent.Replace("`n", "`r`n"), $utf8NoBom)
+
+Write-Host 'Compiling setup with Inno Setup...'
+& $isccExe $issPath
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host '[ERROR] Inno Setup compilation failed.' -ForegroundColor Red
+    exit $LASTEXITCODE
+}
+
+Write-Host '[DONE] setup.exe has been created under installer\.' -ForegroundColor Green
