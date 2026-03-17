@@ -58,6 +58,7 @@ set "NUITKA_CACHE_DIR=%~dp0.build-cache\nuitka"
 
 "%PYTHON_EXE%" -m nuitka ^
     --onefile ^
+    --standalone ^
     --assume-yes-for-downloads ^
     --jobs=%NUMBER_OF_PROCESSORS% ^
     --disable-ccache ^

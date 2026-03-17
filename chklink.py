@@ -338,28 +338,9 @@ def save_config() -> None:
 
     msg = "設定檔已儲存。"
     append_log(msg, "INFO")
-
-
-def make_cmd(file) -> None:
-    '''產生更新程式 update.cmd'''
-    with open(file, 'w') as f:
-        f.write('@echo off\n')
-        f.write('echo 進行新舊版執行檔替換作業...\n')
-        f.write('if exist chklink.exe taskkill /f /im chklink.exe 2>nul\n')
-        f.write('timeout 1\n')
-        f.write('if exist chklink_upd.exe move /Y chklink.exe chklink.exe.old\n')
-        f.write('if exist chklink_upd.exe move /Y chklink_upd.exe chklink.exe\n')
-        f.write('if not exist chklink_upd.exe echo 更新成功！\n')
-        f.write('if exist chklink_upd.exe echo 更新失敗！\n')
-        f.write('start chklink.exe\n')
-        f.write('timeout 6\n')
-
-
 # 設定全域變數
 stop_scan = False
-upd_file = 'update.cmd'
-if not os.path.exists(upd_file):
-    make_cmd(upd_file)  # 建立更新程式的批次檔
+app_config.ensure_update_cmd()  # 建立更新程式的批次檔
 
 config_file = 'config.yaml'
 setting = app_config.read_config(config_file)  # 讀取設定檔 config.yaml，若設定檔存在則讀取，否則建立設定檔

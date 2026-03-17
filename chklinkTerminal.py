@@ -28,6 +28,7 @@ def queued_link_check(start_url, depth_limit=1) -> list:
     return core.scan_site(start_url, depth_limit, options, context)
 
 config_file = 'config.yaml'
+app_config.ensure_update_cmd()
 setting = app_config.read_config(
     config_file,
     on_missing=lambda: print("首次執行，已為您建立預設設定檔。"),

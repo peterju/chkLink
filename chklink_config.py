@@ -5,6 +5,7 @@ from ruamel.yaml import YAML
 
 DEFAULT_TEMPLATE_FILE = "config.yaml-default"
 DEFAULT_LOCAL_VERSION_FILE = "LocalVersion.yaml"
+DEFAULT_UPDATE_CMD_FILE = "update.cmd"
 APP_NAME = "chkLink"
 DEFAULT_APP_VERSION = "1.4"
 
@@ -75,6 +76,27 @@ def ensure_local_version(
     data = {"version": app_version}
     dump_yaml(version_file, data)
     return data
+
+
+def ensure_update_cmd(update_file: str = DEFAULT_UPDATE_CMD_FILE) -> None:
+    """確保 update.cmd 存在；若不存在則建立預設內容。"""
+    if os.path.exists(update_file):
+        return
+
+    lines = [
+        "@echo off",
+        "echo 進行新舊版執行檔替換作業...",
+        "if exist chklink.exe taskkill /f /im chklink.exe 2>nul",
+        "timeout 1",
+        "if exist chklink_upd.exe move /Y chklink.exe chklink.exe.old",
+        "if exist chklink_upd.exe move /Y chklink_upd.exe chklink.exe",
+        "if not exist chklink_upd.exe echo 更新成功！",
+        "if exist chklink_upd.exe echo 更新失敗！",
+        "start chklink.exe",
+        "timeout 6",
+    ]
+    with open(update_file, "w", encoding="utf-8", newline="\r\n") as file:
+        file.write("\r\n".join(lines) + "\r\n")
 
 
 def create_config(cfg_file: str, template_file: str = DEFAULT_TEMPLATE_FILE) -> dict:

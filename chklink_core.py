@@ -2,8 +2,8 @@ import logging
 import os
 import re
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 from urllib.parse import urljoin, urlparse
 
 import openpyxl
