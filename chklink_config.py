@@ -23,7 +23,7 @@ DEFAULT_REMOTE_VERSION_URL = f"{DEFAULT_RELEASE_BASE_URL}{DEFAULT_REMOTE_VERSION
 DEFAULT_SETUP_URL = f"{DEFAULT_RELEASE_BASE_URL}{DEFAULT_SETUP_FILE}"
 APP_NAME = "chkLink"
 APP_DISPLAY_NAME = "網頁失效連結掃描工具"
-DEFAULT_APP_VERSION = "1.4"
+DEFAULT_APP_VERSION = "1.4.0"
 DEFAULT_URL_NORMALIZATION = {
     "drop_fragment": "yes",
     "lowercase_scheme_host": "yes",
@@ -110,6 +110,11 @@ DEFAULT_REDIRECT_RULES = {
     "suspicious_login_keywords": ["login", "signin", "sso", "auth"],
     "suspicious_error_keywords": ["404", "notfound", "not-found", "missing", "error"],
     "treat_cross_domain_as_warning": "no",
+}
+DEFAULT_REQUEST_CONTROL = {
+    "retry_count": 2,
+    "backoff_seconds": 0.5,
+    "domain_delay_seconds": 0.3,
 }
 
 LEGACY_RUNTIME_FILES = {
@@ -198,6 +203,7 @@ def default_setting() -> dict:
         "download_link_rules": copy.deepcopy(DEFAULT_DOWNLOAD_LINK_RULES),
         "soft_404_rules": copy.deepcopy(DEFAULT_SOFT_404_RULES),
         "redirect_rules": copy.deepcopy(DEFAULT_REDIRECT_RULES),
+        "request_control": copy.deepcopy(DEFAULT_REQUEST_CONTROL),
     }
 
 
@@ -295,6 +301,7 @@ def normalize_setting(setting: dict, documents_dir: str) -> tuple[dict, bool]:
     updated = _merge_missing_defaults(setting, "download_link_rules", DEFAULT_DOWNLOAD_LINK_RULES) or updated
     updated = _merge_missing_defaults(setting, "soft_404_rules", DEFAULT_SOFT_404_RULES) or updated
     updated = _merge_missing_defaults(setting, "redirect_rules", DEFAULT_REDIRECT_RULES) or updated
+    updated = _merge_missing_defaults(setting, "request_control", DEFAULT_REQUEST_CONTROL) or updated
 
     return setting, updated
 
@@ -364,6 +371,17 @@ def normalize_string_list(values, field_name: str, lowercase: bool = False) -> l
     return normalized
 
 
+def parse_non_negative_float(value, field_name: str) -> float:
+    """將輸入轉成非負浮點數，失敗時拋出明確錯誤。"""
+    try:
+        number = float(str(value).strip())
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} 必須是數字。") from exc
+    if number < 0:
+        raise ValueError(f"{field_name} 必須大於或等於 0。")
+    return number
+
+
 def validate_url_list(urls: list[str], field_name: str, require_non_empty: bool = False) -> list[str]:
     """驗證網址清單，只接受 http/https。"""
     if urls is None:
@@ -390,6 +408,7 @@ def resolve_scan_advanced_settings(setting: dict) -> dict:
     download_link_rules = setting.get("download_link_rules") or {}
     soft_404_rules = setting.get("soft_404_rules") or {}
     redirect_rules = setting.get("redirect_rules") or {}
+    request_control = setting.get("request_control") or {}
 
     return {
         "url_normalization": {
@@ -501,6 +520,21 @@ def resolve_scan_advanced_settings(setting: dict) -> dict:
                     DEFAULT_REDIRECT_RULES["treat_cross_domain_as_warning"],
                 ),
                 "redirect_rules.treat_cross_domain_as_warning",
+            ),
+        },
+        "request_control": {
+            "retry_count": parse_positive_int(
+                request_control.get("retry_count", DEFAULT_REQUEST_CONTROL["retry_count"]),
+                "request_control.retry_count",
+                minimum=0,
+            ),
+            "backoff_seconds": parse_non_negative_float(
+                request_control.get("backoff_seconds", DEFAULT_REQUEST_CONTROL["backoff_seconds"]),
+                "request_control.backoff_seconds",
+            ),
+            "domain_delay_seconds": parse_non_negative_float(
+                request_control.get("domain_delay_seconds", DEFAULT_REQUEST_CONTROL["domain_delay_seconds"]),
+                "request_control.domain_delay_seconds",
             ),
         },
     }

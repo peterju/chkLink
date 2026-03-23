@@ -4,11 +4,12 @@ $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configPath = Join-Path $projectRoot 'chklink_config.py'
 $issPath = Join-Path $projectRoot 'installer_template.iss'
 $distDir = Join-Path $projectRoot 'out\chklink.dist'
+$cliExePath = Join-Path $projectRoot 'out\chklink_cli.exe'
 $dataDir = Join-Path $projectRoot 'data'
 $localVersionPath = Join-Path $projectRoot 'data\LocalVersion.yaml'
 $updateCmdPath = Join-Path $projectRoot 'data\update.cmd'
 $iconPath = Join-Path $projectRoot 'chklink.ico'
-$installerDir = Join-Path $projectRoot 'installer'
+$installerRootDir = Join-Path $projectRoot 'installer'
 $pythonExe = Join-Path $projectRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $pythonExe)) {
     $pythonExe = 'python'
@@ -21,6 +22,11 @@ if (-not (Test-Path -LiteralPath $configPath)) {
 
 if (-not (Test-Path -LiteralPath $distDir)) {
     Write-Host '[ERROR] out\chklink.dist not found. Run make.cmd first.' -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $cliExePath)) {
+    Write-Host '[ERROR] out\chklink_cli.exe not found. Run make.cmd first.' -ForegroundColor Red
     exit 1
 }
 
@@ -86,8 +92,9 @@ if (-not (Test-Path -LiteralPath $languageFile)) {
     exit 1
 }
 
+$installerDir = Join-Path $installerRootDir $appVersion
 if (-not (Test-Path -LiteralPath $installerDir)) {
-    New-Item -ItemType Directory -Path $installerDir | Out-Null
+    New-Item -ItemType Directory -Path $installerDir -Force | Out-Null
 }
 
 $issContent = @"
@@ -96,7 +103,9 @@ $issContent = @"
 #define MyAppVersion "$appVersion"
 #define MyAppPublisher "$appName"
 #define MyAppExeName "chklink.exe"
+#define MyAppCliExeName "chklink_cli.exe"
 #define MyAppDistDir "$($distDir -replace '\\','\\')"
+#define MyAppCliExePath "$($cliExePath -replace '\\','\\')"
 #define MyAppLocalVersion "$($localVersionPath -replace '\\','\\')"
 #define MyAppUpdateCmd "$($updateCmdPath -replace '\\','\\')"
 
@@ -123,6 +132,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "{#MyAppCliExePath}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppLocalVersion}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppUpdateCmd}"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -145,4 +155,4 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Host '[DONE] setup.exe has been created under installer\.' -ForegroundColor Green
+Write-Host "[DONE] setup.exe has been created under installer\$appVersion\." -ForegroundColor Green

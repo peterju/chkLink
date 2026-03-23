@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -38,6 +39,7 @@ class ScanOptions:
     download_link_rules: dict = field(default_factory=dict)
     soft_404_rules: dict = field(default_factory=dict)
     redirect_rules: dict = field(default_factory=dict)
+    request_control: dict = field(default_factory=dict)
     normalized_avoid_urls: set[str] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -57,6 +59,7 @@ class ScanContext:
     browser: webdriver.Chrome
     emit: EmitFunc | None = None
     should_stop: StopFunc | None = None
+    domain_last_request_at: dict = field(default_factory=dict)
 
     def push(self, level: str, message: str) -> None:
         """同時寫入 logger，必要時也回呼到 UI。"""
@@ -72,6 +75,17 @@ class ScanContext:
     def stopped(self) -> bool:
         """回傳目前是否已被要求停止掃描。"""
         return self.should_stop is not None and self.should_stop()
+
+
+@dataclass(frozen=True)
+class LinkCheckResult:
+    """單一連結檢查結果。"""
+
+    url: str
+    link_text: str
+    status: str
+    issue_type: str
+    content_kind: str
 
 
 def create_webdriver() -> webdriver.Chrome:
@@ -147,7 +161,7 @@ def _requests_get(
     timeout: int,
     allow_redirects: bool = True,
     referer: str | None = None,
-) -> requests.Response:
+    ) -> requests.Response:
     """依協定包裝 requests.get。"""
     request_headers = dict(headers)
     if referer:
@@ -162,6 +176,67 @@ def _requests_get(
         allow_redirects=allow_redirects,
         verify=False,
     )
+
+
+def _wait_for_domain_slot(url: str, options: ScanOptions, context: ScanContext) -> None:
+    """同一網域請求之間保留最小間隔，避免過度密集。"""
+    delay = float(options.request_control.get("domain_delay_seconds", 0))
+    if delay <= 0:
+        return
+
+    hostname = _normalized_hostname(url)
+    if not hostname:
+        return
+
+    now = time.monotonic()
+    last_request_at = context.domain_last_request_at.get(hostname)
+    if last_request_at is not None:
+        wait_seconds = delay - (now - last_request_at)
+        if wait_seconds > 0:
+            time.sleep(wait_seconds)
+    context.domain_last_request_at[hostname] = time.monotonic()
+
+
+def _request_with_retry(
+    url: str,
+    options: ScanOptions,
+    context: ScanContext,
+    allow_redirects: bool = True,
+    referer: str | None = None,
+) -> requests.Response:
+    """加入 retry、backoff 與每網域節流的 requests 包裝。"""
+    retry_count = int(options.request_control.get("retry_count", 0))
+    backoff_seconds = float(options.request_control.get("backoff_seconds", 0))
+    last_exception = None
+
+    for attempt in range(retry_count + 1):
+        _wait_for_domain_slot(url, options, context)
+        try:
+            response = _requests_get(
+                url,
+                options.headers,
+                options.timeout,
+                allow_redirects=allow_redirects,
+                referer=referer,
+            )
+            if response.status_code not in {429, 500, 502, 503, 504} or attempt >= retry_count:
+                return response
+            last_exception = requests.exceptions.HTTPError(f"HTTP {response.status_code}")
+        except (
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.SSLError,
+        ) as exc:
+            last_exception = exc
+            if attempt >= retry_count:
+                raise
+        if attempt < retry_count:
+            time.sleep(backoff_seconds * (2 ** attempt))
+
+    if last_exception is not None:
+        raise last_exception
+    raise requests.exceptions.RequestException(f"無法取得此網頁內容：{url}")
 
 
 def _is_problem_status(status: str) -> bool:
@@ -186,6 +261,54 @@ def _is_cacheable_status(status: str) -> bool:
     )
 
 
+def _classify_issue_type(status: str) -> str:
+    """根據狀態字串回傳報表用錯誤類型。"""
+    lowered = status.lower()
+    if SKIPPED_MARKER in status:
+        return "skipped"
+    if EMPTY_CONTENT_MARKER in status:
+        return "empty_content"
+    if SOFT_404_MARKER in status:
+        return "soft_404"
+    if SUSPICIOUS_REDIRECT_MARKER in status:
+        return "suspicious_redirect"
+    if SPA_SHELL_MARKER in status:
+        return "spa_shell"
+    if HTTP_WARNING_MARKER in status:
+        return "http_insecure"
+    if "重新導向次數過多" in status:
+        return "redirect_loop"
+    if "連線逾時" in status:
+        return "timeout"
+    if "無法連線至此網頁" in status:
+        return "connection_error"
+    if "SSL 錯誤" in status:
+        return "ssl_error"
+    if "連結缺少協定" in status:
+        return "invalid_url"
+    if status.startswith("403"):
+        return "http_403"
+    if status.startswith("404"):
+        return "http_404"
+    if status.startswith("410"):
+        return "http_410"
+    if status.startswith("429"):
+        return "http_429"
+    if status.startswith("500"):
+        return "http_500"
+    if status.startswith("502"):
+        return "http_502"
+    if status.startswith("503"):
+        return "http_503"
+    if status.startswith("504"):
+        return "http_504"
+    if status.startswith("200 重定向"):
+        return "redirect"
+    if status.startswith("200"):
+        return "ok"
+    return "request_error"
+
+
 def _is_html_like_url(url: str, options: ScanOptions | None = None) -> bool:
     """判斷網址是否看起來像可繼續爬的網頁。"""
     if options is not None and _is_probable_download_url(url, options):
@@ -194,6 +317,37 @@ def _is_html_like_url(url: str, options: ScanOptions | None = None) -> bool:
     if not match:
         return True
     return url.endswith(("html", "htm", "php", "asp", "aspx", "jsp", "tw", "com"))
+
+
+def _detect_content_kind(response: requests.Response, options: ScanOptions) -> str:
+    """根據回應標頭判斷內容型態。"""
+    content_disposition = (response.headers.get("Content-Disposition") or "").lower()
+    if "attachment" in content_disposition:
+        return "download"
+
+    content_type = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    if content_type.startswith("text/html") or content_type in {"application/xhtml+xml"}:
+        return "html"
+    if content_type.startswith("image/"):
+        return "image"
+    if content_type.startswith("text/"):
+        return "text"
+    if content_type in {
+        "application/pdf",
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/octet-stream",
+        "application/msword",
+        "application/vnd.ms-excel",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    }:
+        return "download"
+    if _is_probable_download_url(response.url, options):
+        return "download"
+    return "unknown"
 
 
 def _is_local_http_target(url: str) -> bool:
@@ -418,7 +572,7 @@ def _browser_fetch_status(full_url: str, context: ScanContext, original_status: 
         return original_status
 
 
-def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, context: ScanContext) -> str:
+def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, context: ScanContext) -> LinkCheckResult:
     """檢查單一連結並回傳狀態字串。"""
     if link.startswith("http"):
         full_url = link.strip()
@@ -428,15 +582,18 @@ def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, c
 
     if _is_avoid_url(full_url, options):
         status = SKIPPED_MARKER
+        content_kind = "skip"
     elif options.skip_visited and (visit_key in context.visited_link or full_url in context.visited_link):
         cached_status = context.visited_link.get(visit_key, context.visited_link.get(full_url))
         status = f"{cached_status} (已檢查過網址)"
+        content_kind = "cached"
     else:
         protocol = urlparse(full_url).scheme
         try:
-            response = _requests_get(full_url, options.headers, options.timeout, allow_redirects=True, referer=base_url)
+            response = _request_with_retry(full_url, options, context, allow_redirects=True, referer=base_url)
             status = str(response.status_code)
             content_length = len(response.content)
+            content_kind = _detect_content_kind(response, options)
             if status == "200" and content_length == 0:
                 status = EMPTY_CONTENT_MARKER
             elif status == "200":
@@ -444,28 +601,37 @@ def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, c
                 soft_404_reason = _detect_soft_404(response, options)
                 if soft_404_reason:
                     status = f"{SOFT_404_MARKER}：{soft_404_reason}"
-                elif _looks_like_spa_shell(response):
+                elif content_kind == "html" and _looks_like_spa_shell(response):
                     status = SPA_SHELL_MARKER
                 elif redirect_status:
                     status = redirect_status
         except requests.exceptions.ConnectTimeout as exc:
             status = f"連線逾時：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
         except requests.exceptions.ConnectionError as exc:
             status = f"無法連線至此網頁：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
         except requests.exceptions.Timeout as exc:
             status = f"連線逾時：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
         except requests.exceptions.MissingSchema as exc:
             status = f"連結缺少協定：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
         except requests.exceptions.TooManyRedirects as exc:
             status = f"重新導向次數過多：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
         except requests.exceptions.SSLError as exc:
             status = f"SSL 錯誤或憑證不正確：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
         except requests.exceptions.RequestException as exc:
             status = f"無法取得此網頁內容：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
         except requests.exceptions.HTTPError as exc:
             status = f"HTTP 錯誤：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
         except Exception as exc:
             status = f"其它錯誤：{link}  錯誤訊息：{exc}"
+            content_kind = "unknown"
 
         if _should_fallback_to_browser(status):
             status = _browser_fetch_status(full_url, context, status)
@@ -485,6 +651,7 @@ def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, c
 
         context.visited_link[visit_key] = status
 
+    issue_type = _classify_issue_type(status)
     message = f"檢查: {link} ... 狀態: {status} ... 文字: {link_text}"
     if "200" in status:
         if (
@@ -498,14 +665,20 @@ def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, c
             context.push("info", message)
     else:
         context.push("error", message)
-    return status
+    return LinkCheckResult(
+        url=full_url,
+        link_text=link_text,
+        status=status,
+        issue_type=issue_type,
+        content_kind=content_kind,
+    )
 
 
 def get_links(url: str, options: ScanOptions, context: ScanContext) -> tuple[list, list, list, list]:
     """取得頁面中的內部連結、外部連結、缺少 alt 的圖片與 HTTP 連結。"""
     try:
         domain = _normalized_hostname(url)
-        response = _requests_get(url.strip(), options.headers, options.timeout, allow_redirects=True, referer=url)
+        response = _request_with_retry(url.strip(), options, context, allow_redirects=True, referer=url)
         real_url = response.url
         real_domain = _normalized_hostname(real_url)
         if _get_visit_key(url, options) != _get_visit_key(real_url, options) and domain != real_domain:
@@ -518,7 +691,7 @@ def get_links(url: str, options: ScanOptions, context: ScanContext) -> tuple[lis
             _wait, client_url = result["content"].split(";")
             if client_url.strip().lower().startswith("url="):
                 client_url = urljoin(url, client_url.strip()[4:])
-            response = _requests_get(client_url, options.headers, options.timeout, allow_redirects=True, referer=url)
+            response = _request_with_retry(client_url, options, context, allow_redirects=True, referer=url)
             dammit = UnicodeDammit(response.content, ["utf-8", "latin-1", "iso-8859-1", "windows-1251"])
             soup = BeautifulSoup(dammit.unicode_markup, "lxml")
             context.push("info", f"網頁於前端重新導向至：{client_url}")
@@ -607,15 +780,15 @@ def scan_site(start_url: str, depth_limit: int, options: ScanOptions, context: S
         for link, link_text in internal_links:
             if context.stopped():
                 break
-            status = check_link(url, link, link_text, options, context)
-            internal_statuses.append((link, status, link_text))
+            result = check_link(url, link, link_text, options, context)
+            internal_statuses.append(result)
 
-        error_internal_links = [item for item in internal_statuses if _is_problem_status(item[1])]
+        error_internal_links = [item for item in internal_statuses if _is_problem_status(item.status)]
         error_external_links = []
-        error_links = list(set(error_internal_links + error_external_links))
+        error_links = error_internal_links + error_external_links
 
         if error_links:
-            context.push("error", "錯誤連結：" + ", ".join([link for link, _, _ in error_links]))
+            context.push("error", "錯誤連結：" + ", ".join([item.url for item in error_links]))
 
         if error_links or no_alt_links or http_links:
             all_err_links.append(
@@ -631,11 +804,16 @@ def scan_site(start_url: str, depth_limit: int, options: ScanOptions, context: S
         if current_depth >= depth_limit:
             continue
 
-        error_internal_set = {(link, link_text) for link, _, link_text in error_internal_links}
+        error_internal_set = {item.url for item in error_internal_links}
+        non_html_internal_set = {
+            item.url for item in internal_statuses if item.content_kind in {"download", "image", "text"}
+        }
         for link, link_text in internal_links:
-            if (link, link_text) in error_internal_set:
-                continue
             absolute_link = urljoin(url, link).strip()
+            if absolute_link in error_internal_set:
+                continue
+            if absolute_link in non_html_internal_set:
+                continue
             normalized_link = _get_visit_key(absolute_link, options)
             if _normalized_hostname(absolute_link) != start_domain:
                 continue
@@ -653,7 +831,7 @@ def write_report(report_folder: str, filename: str, result: list[dict], include_
     xlsx_name = os.path.join(report_folder, f"{filename}.xlsx")
     workbook = openpyxl.Workbook()
     sheet = workbook.worksheets[0]
-    sheet.append(("層數", "網頁", "錯誤連結", "連結文字", "狀態碼或錯誤訊息"))
+    sheet.append(("層數", "網頁", "錯誤類型", "錯誤連結", "連結文字", "狀態碼或錯誤訊息"))
 
     for column in range(1, sheet.max_column + 1):
         sheet.cell(1, column).alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -661,15 +839,15 @@ def write_report(report_folder: str, filename: str, result: list[dict], include_
     sheet.row_dimensions[1].height = 20
 
     for rec in sorted(result, key=lambda item: (item["depth"], item["url"])):
-        for link, status, link_text in rec["error_links"]:
-            sheet.append([rec["depth"], rec["url"], link, link_text, status])
+        for item in rec["error_links"]:
+            sheet.append([rec["depth"], rec["url"], item.issue_type, item.url, item.link_text, item.status])
         for link, link_text in rec["no_alt_links"]:
-            sheet.append([rec["depth"], rec["url"], link, link_text, "圖片沒有 alt 屬性"])
+            sheet.append([rec["depth"], rec["url"], "missing_alt", link, link_text, "圖片沒有 alt 屬性"])
         if include_http_links:
             for link, link_text in rec.get("http_links", []):
-                sheet.append([rec["depth"], rec["url"], link, link_text, f"使用 http 協定並不安全"])
+                sheet.append([rec["depth"], rec["url"], "http_insecure", link, link_text, "使用 http 協定並不安全"])
 
-    column_widths = {"A": 8, "B": 60, "C": 70, "D": 35, "E": 70}
+    column_widths = {"A": 8, "B": 50, "C": 18, "D": 70, "E": 35, "F": 70}
     for col, width in column_widths.items():
         sheet.column_dimensions[col].width = width
 
@@ -681,14 +859,14 @@ def write_report(report_folder: str, filename: str, result: list[dict], include_
         sheet.cell(row, 2).hyperlink = sheet.cell(row, 2).value
         sheet.cell(row, 2).alignment = Alignment(vertical="center", wrap_text=True)
 
-        sheet.cell(row, 3).style = "Hyperlink"
-        if not sheet.cell(row, 3).value.startswith(("http", "//")):
-            sheet.cell(row, 3).hyperlink = urljoin(sheet.cell(row, 2).value, sheet.cell(row, 3).value)
+        sheet.cell(row, 4).style = "Hyperlink"
+        if not sheet.cell(row, 4).value.startswith(("http", "//")):
+            sheet.cell(row, 4).hyperlink = urljoin(sheet.cell(row, 2).value, sheet.cell(row, 4).value)
         else:
-            sheet.cell(row, 3).hyperlink = sheet.cell(row, 3).value
-        sheet.cell(row, 3).alignment = Alignment(vertical="center", wrap_text=True)
+            sheet.cell(row, 4).hyperlink = sheet.cell(row, 4).value
         sheet.cell(row, 4).alignment = Alignment(vertical="center", wrap_text=True)
         sheet.cell(row, 5).alignment = Alignment(vertical="center", wrap_text=True)
+        sheet.cell(row, 6).alignment = Alignment(vertical="center", wrap_text=True)
 
         for column in range(1, sheet.max_column + 1):
             sheet.cell(row, column).fill = (

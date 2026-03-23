@@ -26,6 +26,7 @@ def queued_link_check(start_url, depth_limit=1) -> list:
         download_link_rules=ADVANCED_SCAN_SETTINGS['download_link_rules'],
         soft_404_rules=ADVANCED_SCAN_SETTINGS['soft_404_rules'],
         redirect_rules=ADVANCED_SCAN_SETTINGS['redirect_rules'],
+        request_control=ADVANCED_SCAN_SETTINGS['request_control'],
     )
     context = core.ScanContext(
         logger=logger,

@@ -281,6 +281,7 @@ def queued_link_check(scan_request: dict) -> list:
                 download_link_rules=advanced_scan_settings['download_link_rules'],
                 soft_404_rules=advanced_scan_settings['soft_404_rules'],
                 redirect_rules=advanced_scan_settings['redirect_rules'],
+                request_control=advanced_scan_settings['request_control'],
             )
 
             def emit(level: str, message: str) -> None:

@@ -198,3 +198,9 @@ redirect_rules:
     - missing
     - error
   treat_cross_domain_as_warning: no
+
+# 請求控制：重試、退避與同網域節流
+request_control:
+  retry_count: 2
+  backoff_seconds: 0.5
+  domain_delay_seconds: 0.3
