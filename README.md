@@ -36,7 +36,7 @@
 - `make_setup.cmd`：第 2 階段，建立對應版本的 installer
 - `make_sign.cmd`：第 3 階段，視需要簽 GUI / CLI / installer
 - `build_installer.ps1`：由 `make_setup.cmd` 呼叫，用來產生 Inno Setup 安裝程式
-- `installer_template.iss`：Inno Setup 安裝腳本
+- `installer_template.iss`：Inno Setup 穩定模板
 - `data\update.cmd`：啟動新版安裝程式用的批次檔
 - `pycert.ps1`：由 `make_sign.cmd` 呼叫，用來簽 GUI / CLI / installer
 
@@ -312,7 +312,8 @@ Inno Setup 語系檔安裝方式如下：
 `build_installer.ps1` 則負責把編譯產物封裝成安裝程式，它會：
 
 - 讀取 `chklink_config.py` 的 `APP_NAME`、`APP_DISPLAY_NAME`、`DEFAULT_APP_VERSION`
-- 重寫 `installer_template.iss` 內的版本、顯示名稱與來源路徑
+- 讀取 `installer_template.iss` 作為穩定模板
+- 依版本、路徑與顯示名稱產生 `installer\build.iss`
 - 將 `out\chklink.dist`、`out\chklink_cli.exe`、`data\LocalVersion.yaml`、`data\update.cmd` 一起包進安裝檔
 - 其中 `LocalVersion.yaml` 與 `update.cmd` 會安裝到目標機器的 `data\` 目錄，需與程式實際讀取路徑一致
 - 呼叫 Inno Setup 6 的 `ISCC.exe`
@@ -581,6 +582,6 @@ $thumbprint = '63dc665f1795f66146cf1096d956fd797060af24'
 
 ## 維護提醒
 
-- 還原 UTF-8 檔案時，不要使用 PowerShell 文字管線，以免繁體中文再度毀損。
+- 處理 UTF-8 檔案時，不要使用 PowerShell 文字管線，以免繁體中文毀損。
 - 若調整安裝流程，請同步檢查 `make.cmd`、`build_installer.ps1`、`installer_template.iss` 與 `pycert.ps1` 是否仍相容。
 - 若未來要再調整程式內更新流程，請先確認 GUI 文案、`run_update()`、`make_setup.cmd` 與 `data\update.cmd` 是否整體一致。

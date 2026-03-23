@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configPath = Join-Path $projectRoot 'chklink_config.py'
-$issPath = Join-Path $projectRoot 'installer_template.iss'
+$issTemplatePath = Join-Path $projectRoot 'installer_template.iss'
 $distDir = Join-Path $projectRoot 'out\chklink.dist'
 $cliExePath = Join-Path $projectRoot 'out\chklink_cli.exe'
 $dataDir = Join-Path $projectRoot 'data'
@@ -17,6 +17,11 @@ if (-not (Test-Path -LiteralPath $pythonExe)) {
 
 if (-not (Test-Path -LiteralPath $configPath)) {
     Write-Host '[ERROR] chklink_config.py not found.' -ForegroundColor Red
+    exit 1
+}
+
+if (-not (Test-Path -LiteralPath $issTemplatePath)) {
+    Write-Host '[ERROR] installer_template.iss not found.' -ForegroundColor Red
     exit 1
 }
 
@@ -96,59 +101,30 @@ $installerDir = Join-Path $installerRootDir $appVersion
 if (-not (Test-Path -LiteralPath $installerDir)) {
     New-Item -ItemType Directory -Path $installerDir -Force | Out-Null
 }
-
-$issContent = @"
-#define MyAppName "$appName"
-#define MyAppDisplayName "$appDisplayName"
-#define MyAppVersion "$appVersion"
-#define MyAppPublisher "$appName"
-#define MyAppExeName "chklink.exe"
-#define MyAppCliExeName "chklink_cli.exe"
-#define MyAppDistDir "$($distDir -replace '\\','\\')"
-#define MyAppCliExePath "$($cliExePath -replace '\\','\\')"
-#define MyAppLocalVersion "$($localVersionPath -replace '\\','\\')"
-#define MyAppUpdateCmd "$($updateCmdPath -replace '\\','\\')"
-
-[Setup]
-AppId={{A1E42E19-0B41-4B4D-BF51-6DDE2911A0E1}
-AppName={#MyAppDisplayName}
-AppVersion={#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppDisplayName}
-OutputDir=$($installerDir -replace '\\','\\')
-OutputBaseFilename=chklink_setup
-Compression=lzma
-SolidCompression=yes
-WizardStyle=modern
-SetupIconFile=$($iconPath -replace '\\','\\')
-DisableProgramGroupPage=yes
-
-[Languages]
-Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
-
-[Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-
-[Files]
-Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
-Source: "{#MyAppCliExePath}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyAppLocalVersion}"; DestDir: "{app}\data"; Flags: ignoreversion
-Source: "{#MyAppUpdateCmd}"; DestDir: "{app}\data"; Flags: ignoreversion
-
-[Icons]
-Name: "{autodesktop}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{group}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"
-
-[Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppDisplayName}}"; Flags: nowait postinstall skipifsilent
-"@
+$generatedIssPath = Join-Path $installerRootDir 'build.iss'
+$issTemplateContent = [System.IO.File]::ReadAllText($issTemplatePath)
+$issContent = $issTemplateContent
+$replacements = @{
+    '{{APP_NAME}}' = $appName
+    '{{APP_DISPLAY_NAME}}' = $appDisplayName
+    '{{APP_VERSION}}' = $appVersion
+    '{{APP_PUBLISHER}}' = $appName
+    '{{DIST_DIR}}' = ($distDir -replace '\\','\\')
+    '{{CLI_EXE_PATH}}' = ($cliExePath -replace '\\','\\')
+    '{{LOCAL_VERSION_PATH}}' = ($localVersionPath -replace '\\','\\')
+    '{{UPDATE_CMD_PATH}}' = ($updateCmdPath -replace '\\','\\')
+    '{{OUTPUT_DIR}}' = ($installerDir -replace '\\','\\')
+    '{{ICON_PATH}}' = ($iconPath -replace '\\','\\')
+}
+foreach ($entry in $replacements.GetEnumerator()) {
+    $issContent = $issContent.Replace($entry.Key, $entry.Value)
+}
 
 $utf8Bom = New-Object System.Text.UTF8Encoding($true)
-[System.IO.File]::WriteAllText($issPath, $issContent.Replace("`n", "`r`n"), $utf8Bom)
+[System.IO.File]::WriteAllText($generatedIssPath, $issContent.Replace("`n", "`r`n"), $utf8Bom)
 
 Write-Host 'Compiling setup with Inno Setup...'
-& $isccExe $issPath
+& $isccExe $generatedIssPath
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host '[ERROR] Inno Setup compilation failed.' -ForegroundColor Red

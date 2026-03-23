@@ -28,6 +28,10 @@
 - 第 2 階段：`make_setup.cmd`
 - Purpose: build `installer\<version>\chklink_setup.exe` through [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1) and [installer_template.iss](/D:/pyTest/chkLink/installer_template.iss)
 - 作用：透過 [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1) 與 [installer_template.iss](/D:/pyTest/chkLink/installer_template.iss) 產生 `installer\<版本>\chklink_setup.exe`
+- `installer_template.iss` should stay as a stable template.
+- [installer_template.iss](/D:/pyTest/chkLink/installer_template.iss) 應保持為穩定模板。
+- `build_installer.ps1` generates `installer\build.iss` and passes that generated file to Inno Setup.
+- [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1) 會產生 `installer\build.iss`，再把這份生成檔交給 Inno Setup 編譯。
 
 - Stage 3 signing: `make_sign.cmd`
 - 第 3 階段：`make_sign.cmd`
