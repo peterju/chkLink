@@ -44,16 +44,18 @@ if not defined APP_VERSION (
     exit /b 1
 )
 
-"%PYTHON_EXE%" -c "import chklink_config as c; c.dump_yaml(\"LocalVersion.yaml\", {\"version\": c.DEFAULT_APP_VERSION})"
+if not exist "data" mkdir "data"
+if not exist "installer" mkdir "installer"
+
+"%PYTHON_EXE%" -c "import chklink_config as c; c.dump_yaml(c.DEFAULT_LOCAL_VERSION_FILE, {\"version\": c.DEFAULT_APP_VERSION}); c.ensure_update_cmd()"
 if errorlevel 1 (
-    echo [錯誤] 無法更新 LocalVersion.yaml。
+    echo [錯誤] 無法更新 data\LocalVersion.yaml 或 data\update.cmd。
     exit /b 1
 )
 
 if exist "out" rmdir /s /q "out"
 if exist "build" rmdir /s /q "build"
 if not exist ".build-cache" mkdir ".build-cache"
-if not exist "installer" mkdir "installer"
 
 set PYTHONUTF8=1
 set "NUITKA_CACHE_DIR=%~dp0.build-cache\nuitka"
@@ -85,11 +87,12 @@ if not exist "out\chklink.dist\chklink.exe" (
     exit /b 1
 )
 
-copy /y "LocalVersion.yaml" "installer\RemoteVersion.yaml" >nul
+copy /y "data\LocalVersion.yaml" "installer\RemoteVersion.yaml" >nul
 if errorlevel 1 (
     echo [錯誤] 無法產生 installer\RemoteVersion.yaml。
     exit /b 1
 )
 
 echo [完成] 已產生 out\chklink.dist\chklink.exe
+echo [完成] 已同步 data\LocalVersion.yaml
 echo [完成] 已產生 installer\RemoteVersion.yaml

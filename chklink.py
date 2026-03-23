@@ -133,7 +133,7 @@ def run_update():
         if not os.path.exists(setup_file):
             raise FileNotFoundError(f"找不到下載後的安裝程式：{setup_file}")
 
-        subprocess.Popen(['cmd', '/c', 'update.cmd', setup_file], cwd=os.getcwd())
+        subprocess.Popen(['cmd', '/c', app_config.DEFAULT_UPDATE_CMD_FILE, setup_file], cwd=os.getcwd())
         run_on_ui_thread(lambda: form.after(300, form.destroy))
     except Exception as exc:
         show_warning_message("升級失敗", f"無法完成升級流程：{exc}")
@@ -353,15 +353,15 @@ def save_config() -> None:
     append_log(msg, "INFO")
 # 設定全域變數
 stop_scan = False
-
-config_file = 'config.yaml'
-setting = app_config.read_config(config_file)  # 讀取設定檔 config.yaml，若設定檔存在則讀取，否則建立設定檔
+app_config.migrate_legacy_runtime_files()
+config_file = app_config.DEFAULT_CONFIG_FILE
+setting = app_config.read_config(config_file)  # 讀取設定檔 data\config.yaml，若設定檔存在則讀取，否則建立設定檔
 
 # 檢查並補充缺少的設定
 setting, updated = app_config.normalize_setting(setting, os.path.join(os.environ['USERPROFILE'], 'Documents'))
 local_version = (
-    app_config.load_yaml('LocalVersion.yaml')
-    if os.path.exists('LocalVersion.yaml')
+    app_config.load_yaml(app_config.DEFAULT_LOCAL_VERSION_FILE)
+    if os.path.exists(app_config.DEFAULT_LOCAL_VERSION_FILE)
     else {'version': app_config.DEFAULT_APP_VERSION}
 )
 
@@ -373,7 +373,7 @@ if updated:
 # 其它全域變數與設定
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # 關閉 SSL 不安全的警告訊息
 logger = None  # 定義 logger
-visted_link_file = 'visited_link.yaml'  # 已檢查過的連結檔案
+visted_link_file = app_config.DEFAULT_VISITED_LINK_FILE  # 已檢查過的連結檔案
 visited_link = core.load_visited_link(visted_link_file)  # 載入已檢查過的連結檔案，供儲存已檢查過的連結與回應狀態碼
 browser = None  # 定義瀏覽器物件
 

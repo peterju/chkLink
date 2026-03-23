@@ -4,8 +4,8 @@
 #define MyAppPublisher "chkLink"
 #define MyAppExeName "chklink.exe"
 #define MyAppDistDir "D:\\pyTest\\chkLink\\out\\chklink.dist"
-#define MyAppLocalVersion "D:\\pyTest\\chkLink\\LocalVersion.yaml"
-#define MyAppUpdateCmd "D:\\pyTest\\chkLink\\update.cmd"
+#define MyAppLocalVersion "D:\\pyTest\\chkLink\\data\\LocalVersion.yaml"
+#define MyAppUpdateCmd "D:\\pyTest\\chkLink\\data\\update.cmd"
 
 [Setup]
 AppId={{A1E42E19-0B41-4B4D-BF51-6DDE2911A0E1}

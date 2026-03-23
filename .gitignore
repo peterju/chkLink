@@ -12,6 +12,8 @@ test1.py
 *.bak
 visited_link.yaml
 config.yaml
+data/config.yaml
+data/visited_link.yaml
 *copy.*
 *.json
 

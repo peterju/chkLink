@@ -2,10 +2,11 @@ $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configPath = Join-Path $projectRoot 'chklink_config.py'
-$issPath = Join-Path $projectRoot 'chklink_setup.iss'
+$issPath = Join-Path $projectRoot 'installer_template.iss'
 $distDir = Join-Path $projectRoot 'out\chklink.dist'
-$localVersionPath = Join-Path $projectRoot 'LocalVersion.yaml'
-$updateCmdPath = Join-Path $projectRoot 'update.cmd'
+$dataDir = Join-Path $projectRoot 'data'
+$localVersionPath = Join-Path $projectRoot 'data\LocalVersion.yaml'
+$updateCmdPath = Join-Path $projectRoot 'data\update.cmd'
 $iconPath = Join-Path $projectRoot 'chklink.ico'
 $installerDir = Join-Path $projectRoot 'installer'
 $pythonExe = Join-Path $projectRoot '.venv\Scripts\python.exe'
@@ -24,15 +25,15 @@ if (-not (Test-Path -LiteralPath $distDir)) {
 }
 
 if (-not (Test-Path -LiteralPath $localVersionPath)) {
-    Write-Host '[ERROR] LocalVersion.yaml not found. Run make.cmd first.' -ForegroundColor Red
+    Write-Host '[ERROR] data\LocalVersion.yaml not found. Run make.cmd first.' -ForegroundColor Red
     exit 1
 }
 
 if (-not (Test-Path -LiteralPath $updateCmdPath)) {
-    Write-Host '[INFO] update.cmd not found. Creating it now...'
+    Write-Host '[INFO] data\update.cmd not found. Creating it now...'
     & $pythonExe -c "import chklink_config as c; c.ensure_update_cmd()"
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $updateCmdPath)) {
-        Write-Host '[ERROR] update.cmd not found.' -ForegroundColor Red
+        Write-Host '[ERROR] data\update.cmd not found.' -ForegroundColor Red
         exit 1
     }
 }

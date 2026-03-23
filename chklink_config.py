@@ -1,16 +1,27 @@
 import os
+import shutil
 from urllib.parse import urlparse
 
 from ruamel.yaml import YAML
 
+DATA_DIR = "data"
 DEFAULT_TEMPLATE_FILE = "config.yaml-default"
-DEFAULT_LOCAL_VERSION_FILE = "LocalVersion.yaml"
-DEFAULT_UPDATE_CMD_FILE = "update.cmd"
+DEFAULT_CONFIG_FILE = os.path.join(DATA_DIR, "config.yaml")
+DEFAULT_LOCAL_VERSION_FILE = os.path.join(DATA_DIR, "LocalVersion.yaml")
+DEFAULT_UPDATE_CMD_FILE = os.path.join(DATA_DIR, "update.cmd")
+DEFAULT_VISITED_LINK_FILE = os.path.join(DATA_DIR, "visited_link.yaml")
 DEFAULT_REMOTE_VERSION_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/installer/RemoteVersion.yaml"
 DEFAULT_SETUP_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/installer/chklink_setup.exe"
 APP_NAME = "chkLink"
 APP_DISPLAY_NAME = "網頁失效連結掃描工具"
 DEFAULT_APP_VERSION = "1.4"
+
+LEGACY_RUNTIME_FILES = {
+    "config.yaml": DEFAULT_CONFIG_FILE,
+    "LocalVersion.yaml": DEFAULT_LOCAL_VERSION_FILE,
+    "update.cmd": DEFAULT_UPDATE_CMD_FILE,
+    "visited_link.yaml": DEFAULT_VISITED_LINK_FILE,
+}
 
 
 def load_yaml(path: str) -> dict:
@@ -26,8 +37,32 @@ def dump_yaml(path: str, data: dict) -> None:
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.indent(mapping=2, sequence=4, offset=2)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as file:
         yaml.dump(data, file)
+
+
+def ensure_data_dir(base_dir: str = ".") -> str:
+    """確保 data 目錄存在並回傳完整路徑。"""
+    data_dir = os.path.join(base_dir, DATA_DIR)
+    os.makedirs(data_dir, exist_ok=True)
+    return data_dir
+
+
+def runtime_path(relative_path: str, base_dir: str = ".") -> str:
+    """將執行期相對路徑轉成實際完整路徑。"""
+    return os.path.join(base_dir, relative_path)
+
+
+def migrate_legacy_runtime_files(base_dir: str = ".") -> None:
+    """將舊版放在根目錄的執行期檔案搬到 data 目錄。"""
+    ensure_data_dir(base_dir)
+    for old_name, new_relative_path in LEGACY_RUNTIME_FILES.items():
+        old_path = os.path.join(base_dir, old_name)
+        new_path = runtime_path(new_relative_path, base_dir)
+        if os.path.exists(old_path) and not os.path.exists(new_path):
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            shutil.move(old_path, new_path)
 
 
 def default_setting() -> dict:
@@ -84,9 +119,11 @@ def ensure_local_version(
 
 
 def ensure_update_cmd(update_file: str = DEFAULT_UPDATE_CMD_FILE) -> None:
-    """確保 update.cmd 存在；若不存在則建立預設內容。"""
+    """確保 data/update.cmd 存在；若不存在則建立預設內容。"""
     if os.path.exists(update_file):
         return
+
+    os.makedirs(os.path.dirname(update_file) or ".", exist_ok=True)
 
     lines = [
         "@echo off",
@@ -112,7 +149,8 @@ def ensure_update_cmd(update_file: str = DEFAULT_UPDATE_CMD_FILE) -> None:
 
 
 def create_config(cfg_file: str, template_file: str = DEFAULT_TEMPLATE_FILE) -> dict:
-    """建立預設的 config.yaml。"""
+    """建立預設的 data/config.yaml。"""
+    os.makedirs(os.path.dirname(cfg_file) or ".", exist_ok=True)
     if os.path.exists(template_file):
         setting = load_yaml(template_file)
     else:
@@ -126,7 +164,7 @@ def read_config(
     template_file: str = DEFAULT_TEMPLATE_FILE,
     on_missing=None,
 ) -> dict:
-    """讀取 config.yaml，若不存在則建立。"""
+    """讀取 data/config.yaml，若不存在則建立。"""
     if os.path.exists(cfg_file):
         return load_yaml(cfg_file)
 

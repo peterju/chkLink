@@ -28,11 +28,12 @@ def queued_link_check(start_url, depth_limit=1) -> list:
     )
     return core.scan_site(start_url, depth_limit, options, context)
 
-config_file = 'config.yaml'
+app_config.migrate_legacy_runtime_files()
+config_file = app_config.DEFAULT_CONFIG_FILE
 setting = app_config.read_config(
     config_file,
     on_missing=lambda: print("首次執行，已為您建立預設設定檔。"),
-)  # 讀取設定檔 config.yaml，若設定檔存在則讀取，否則建立設定檔
+)  # 讀取設定檔 data\config.yaml，若設定檔存在則讀取，否則建立設定檔
 
 # 檢查並補充缺少的設定
 setting, lack_config = app_config.normalize_setting(setting, os.path.join(os.environ['USERPROFILE'], 'Documents'))
@@ -54,7 +55,7 @@ SCAN_URLS = app_config.validate_url_list(setting.get('scan_urls') or [], '想要
 DOC_FOLDER = setting.get('rpt_folder')  # 定義報告存放目錄
 # 其它設定
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # 關閉 SSL 不安全的警告訊息
-visted_link_file = 'visited_link.yaml'  # 已檢查過的連結檔案
+visted_link_file = app_config.DEFAULT_VISITED_LINK_FILE  # 已檢查過的連結檔案
 visited_link = core.load_visited_link(visted_link_file)  # 載入已檢查過的連結檔案，供儲存已檢查過的連結與回應狀態碼
 # 定義瀏覽器物件
 try:
