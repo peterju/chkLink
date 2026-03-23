@@ -8,6 +8,8 @@ import urllib3
 import chklink_core as core
 import chklink_config as app_config
 
+ADVANCED_SCAN_SETTINGS = {}
+
 
 def queued_link_check(start_url, depth_limit=1) -> list:
     '''使用雙向佇列結構儲存網站中的連結'''
@@ -20,6 +22,10 @@ def queued_link_check(start_url, depth_limit=1) -> list:
         alt_must=ALT_MUST.lower() == 'yes',
         check_http=CHECK_HTTP.lower() == 'yes',
         skip_visited=SKIP_VISITED.lower() == 'yes',
+        url_normalization=ADVANCED_SCAN_SETTINGS['url_normalization'],
+        download_link_rules=ADVANCED_SCAN_SETTINGS['download_link_rules'],
+        soft_404_rules=ADVANCED_SCAN_SETTINGS['soft_404_rules'],
+        redirect_rules=ADVANCED_SCAN_SETTINGS['redirect_rules'],
     )
     context = core.ScanContext(
         logger=logger,
@@ -38,6 +44,7 @@ setting = app_config.read_config(
 # 檢查並補充缺少的設定
 setting, lack_config = app_config.normalize_setting(setting, os.path.join(os.environ['USERPROFILE'], 'Documents'))
 app_config.ensure_local_version(app_version=app_config.DEFAULT_APP_VERSION)
+ADVANCED_SCAN_SETTINGS = app_config.resolve_scan_advanced_settings(setting)
 
 # 如果有新的設定，則將新設定存回設定檔
 if lack_config:

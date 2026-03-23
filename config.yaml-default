@@ -92,3 +92,109 @@ scan_urls:
   # - https://csie.ncut.edu.tw/
   # - https://eeweb.ncut.edu.tw/
   # - https://rac3.ncut.edu.tw/
+
+# URL 正規化規則，主要用於避免重複掃描與 visited_link 快取比對
+url_normalization:
+  drop_fragment: yes
+  lowercase_scheme_host: yes
+  strip_default_port: yes
+  collapse_slashes: yes
+  strip_trailing_slash: no
+  sort_query_params: no
+  remove_query_params:
+    - utm_source
+    - utm_medium
+    - utm_campaign
+    - utm_term
+    - utm_content
+    - fbclid
+    - gclid
+    - msclkid
+
+# 下載連結判定規則：會照常檢查可否開啟，但不會當成 HTML 頁面往下遞迴
+download_link_rules:
+  extensions:
+    - 7z
+    - csv
+    - doc
+    - docx
+    - exe
+    - gz
+    - iso
+    - jpg
+    - jpeg
+    - mp3
+    - mp4
+    - pdf
+    - png
+    - ppt
+    - pptx
+    - rar
+    - rtf
+    - tar
+    - tif
+    - tiff
+    - txt
+    - xls
+    - xlsx
+    - zip
+  path_keywords:
+    - /download
+    - /downloads
+    - /attachment
+    - /attachments
+    - /file
+    - /files
+  query_keys:
+    - download
+    - attachment
+    - file
+    - filename
+  query_value_keywords:
+    - download
+    - attachment
+
+# soft-404 判定規則：回應 200，但標題/內容/網址長得像找不到頁面
+soft_404_rules:
+  enabled: yes
+  title_keywords:
+    - 404
+    - not found
+    - page not found
+    - 找不到頁面
+    - 查無此頁
+    - 頁面不存在
+  body_keywords:
+    - 404
+    - not found
+    - page not found
+    - 找不到頁面
+    - 查無此頁
+    - 頁面不存在
+    - 查無資料
+    - 無此資料
+    - 很抱歉
+  url_keywords:
+    - 404
+    - notfound
+    - not-found
+    - missing
+    - error
+  max_text_length: 1200
+  min_keyword_hits: 2
+
+# redirect 類型判定規則：將站內/站外與可疑導向標示得更清楚
+redirect_rules:
+  classify_redirects: yes
+  suspicious_login_keywords:
+    - login
+    - signin
+    - sso
+    - auth
+  suspicious_error_keywords:
+    - 404
+    - notfound
+    - not-found
+    - missing
+    - error
+  treat_cross_domain_as_warning: no

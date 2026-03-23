@@ -3,8 +3,8 @@ import os
 import re
 from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass
-from urllib.parse import urljoin, urlparse
+from dataclasses import dataclass, field
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import openpyxl
 import requests
@@ -20,6 +20,8 @@ EMPTY_CONTENT_MARKER = "200 (內容為空)"
 SKIPPED_MARKER = "200 (避免檢查的網址)"
 HTTP_WARNING_MARKER = "且使用 http 協定並不安全"
 SPA_SHELL_MARKER = "200 (疑似前端框架頁面)"
+SOFT_404_MARKER = "200 (疑似 soft-404)"
+SUSPICIOUS_REDIRECT_MARKER = "200 (疑似異常重定向)"
 
 
 @dataclass
@@ -32,6 +34,18 @@ class ScanOptions:
     alt_must: bool
     check_http: bool
     skip_visited: bool = True
+    url_normalization: dict = field(default_factory=dict)
+    download_link_rules: dict = field(default_factory=dict)
+    soft_404_rules: dict = field(default_factory=dict)
+    redirect_rules: dict = field(default_factory=dict)
+    normalized_avoid_urls: set[str] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self.normalized_avoid_urls = {
+            _normalize_url_for_compare(url, self.url_normalization)
+            for url in self.avoid_urls
+            if str(url).strip()
+        }
 
 
 @dataclass
@@ -123,7 +137,7 @@ def save_visited_link(visited_link_file: str, visited_link: dict) -> None:
     yaml.indent(mapping=2, sequence=4, offset=2)
     with open(visited_link_file, "w", encoding="utf-8") as file:
         for key, value in visited_link.items():
-            if "200" in value:
+            if _is_cacheable_status(value):
                 yaml.dump({key: value}, file)
 
 
@@ -152,11 +166,30 @@ def _requests_get(
 
 def _is_problem_status(status: str) -> bool:
     """判斷狀態是否應被視為錯誤或警告。"""
-    return "200" not in status or EMPTY_CONTENT_MARKER in status
+    return (
+        "200" not in status
+        or EMPTY_CONTENT_MARKER in status
+        or SOFT_404_MARKER in status
+        or SUSPICIOUS_REDIRECT_MARKER in status
+    )
 
 
-def _is_html_like_url(url: str) -> bool:
+def _is_cacheable_status(status: str) -> bool:
+    """判斷狀態是否適合寫回成功連結快取。"""
+    if "200" not in status:
+        return False
+    return not (
+        EMPTY_CONTENT_MARKER in status
+        or SKIPPED_MARKER in status
+        or SOFT_404_MARKER in status
+        or SUSPICIOUS_REDIRECT_MARKER in status
+    )
+
+
+def _is_html_like_url(url: str, options: ScanOptions | None = None) -> bool:
     """判斷網址是否看起來像可繼續爬的網頁。"""
+    if options is not None and _is_probable_download_url(url, options):
+        return False
     match = re.search(r".*\.\w{2,4}$", url)
     if not match:
         return True
@@ -172,6 +205,55 @@ def _is_local_http_target(url: str) -> bool:
 def _normalized_hostname(url: str) -> str:
     """取得標準化後的主機名稱。"""
     return (urlparse(url).hostname or "").lower()
+
+
+def _normalize_url_for_compare(url: str, rules: dict | None = None) -> str:
+    """將網址轉成適合比對與快取的標準格式。"""
+    parsed = urlparse(str(url).strip())
+    if not parsed.scheme or not parsed.netloc:
+        return str(url).strip()
+
+    rules = rules or {}
+    scheme = parsed.scheme.lower() if rules.get("lowercase_scheme_host") == "yes" else parsed.scheme
+    hostname = parsed.hostname or ""
+    if rules.get("lowercase_scheme_host") == "yes":
+        hostname = hostname.lower()
+
+    port = parsed.port
+    if rules.get("strip_default_port") == "yes":
+        if (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
+            port = None
+    netloc = hostname
+    if port:
+        netloc = f"{hostname}:{port}"
+
+    path = parsed.path or "/"
+    if rules.get("collapse_slashes") == "yes":
+        path = re.sub(r"/{2,}", "/", path)
+    if rules.get("strip_trailing_slash") == "yes" and path not in {"", "/"}:
+        path = path.rstrip("/") or "/"
+
+    query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    remove_query_params = set(rules.get("remove_query_params") or [])
+    if remove_query_params:
+        query_pairs = [(key, value) for key, value in query_pairs if key.lower() not in remove_query_params]
+    if rules.get("sort_query_params") == "yes":
+        query_pairs = sorted(query_pairs)
+    query = urlencode(query_pairs, doseq=True)
+    fragment = "" if rules.get("drop_fragment") == "yes" else parsed.fragment
+
+    return urlunparse((scheme, netloc, path, "", query, fragment))
+
+
+def _get_visit_key(url: str, options: ScanOptions) -> str:
+    """取得快取與去重用的網址 key。"""
+    return _normalize_url_for_compare(url, options.url_normalization)
+
+
+def _is_avoid_url(url: str, options: ScanOptions) -> bool:
+    """判斷網址是否在略過清單中。"""
+    normalized_url = _get_visit_key(url, options)
+    return url in options.avoid_urls or normalized_url in options.normalized_avoid_urls
 
 
 def _should_fallback_to_browser(status: str) -> bool:
@@ -209,6 +291,120 @@ def _looks_like_spa_shell(response: requests.Response) -> bool:
     return len(visible_text) <= 40 and (has_mount_node or has_framework_hint or asks_for_js or script_count >= 3)
 
 
+def _extract_html_text(response: requests.Response) -> tuple[str, str, str]:
+    """回傳 HTML 原始內容、標題與可見文字。"""
+    dammit = UnicodeDammit(response.content, ["utf-8", "latin-1", "iso-8859-1", "windows-1251"])
+    markup = dammit.unicode_markup or ""
+    soup = BeautifulSoup(markup, "lxml")
+    title = soup.title.get_text(" ", strip=True) if soup.title else ""
+    body = soup.body or soup
+    visible_text = re.sub(r"\s+", " ", body.get_text(" ", strip=True))
+    return markup, title, visible_text
+
+
+def _match_keywords(text: str, keywords: list[str]) -> list[str]:
+    """找出文字中命中的關鍵字。"""
+    lowered = text.lower()
+    return [keyword for keyword in keywords if keyword and keyword in lowered]
+
+
+def _detect_soft_404(response: requests.Response, options: ScanOptions) -> str | None:
+    """判斷 200 頁面是否疑似 soft-404。"""
+    rules = options.soft_404_rules
+    if rules.get("enabled") != "yes":
+        return None
+
+    content_type = (response.headers.get("Content-Type") or "").lower()
+    if "html" not in content_type:
+        return None
+
+    _markup, title, visible_text = _extract_html_text(response)
+    final_url = response.url.lower()
+    matched_title = _match_keywords(title, rules.get("title_keywords") or [])
+    matched_body = _match_keywords(visible_text, rules.get("body_keywords") or [])
+    matched_url = _match_keywords(final_url, rules.get("url_keywords") or [])
+    hit_count = len(set(matched_title + matched_body + matched_url))
+
+    if not matched_title and not matched_body:
+        return None
+    if len(visible_text) > int(rules.get("max_text_length", 1200)):
+        return None
+    if hit_count < int(rules.get("min_keyword_hits", 2)):
+        return None
+
+    reason_tokens = []
+    if matched_title:
+        reason_tokens.append(f"標題含 {matched_title[0]}")
+    if matched_body:
+        reason_tokens.append(f"內容含 {matched_body[0]}")
+    if matched_url:
+        reason_tokens.append(f"網址含 {matched_url[0]}")
+    return "、".join(reason_tokens[:3])
+
+
+def _classify_redirect(full_url: str, response: requests.Response, options: ScanOptions) -> str | None:
+    """將重新導向結果整理成可讀的分類訊息。"""
+    rules = options.redirect_rules
+    if rules.get("classify_redirects") != "yes":
+        return None
+
+    if not response.history and _get_visit_key(full_url, options) == _get_visit_key(response.url, options):
+        return None
+
+    target = urlparse(response.url)
+    history_code = response.history[-1].status_code if response.history else response.status_code
+    categories = []
+    suspicious_reason = None
+
+    if _normalized_hostname(full_url) != _normalized_hostname(response.url):
+        categories.append("站外")
+        if rules.get("treat_cross_domain_as_warning") == "yes":
+            suspicious_reason = "跨網域"
+    else:
+        categories.append("站內")
+
+    target_path = (target.path or "/").lower()
+    login_keywords = rules.get("suspicious_login_keywords") or []
+    error_keywords = rules.get("suspicious_error_keywords") or []
+    if any(keyword in target_path for keyword in login_keywords):
+        suspicious_reason = "導向登入頁"
+        categories.append("登入頁")
+    elif any(keyword in target_path for keyword in error_keywords):
+        suspicious_reason = "導向錯誤頁"
+        categories.append("錯誤頁")
+
+    category_text = "／".join(categories)
+    if suspicious_reason:
+        return f"{SUSPICIOUS_REDIRECT_MARKER}：{suspicious_reason}，{history_code} 到 {response.url}（{category_text}）"
+    return f"200 重定向（{category_text}）：{history_code} 到 {response.url}"
+
+
+def _is_probable_download_url(url: str, options: ScanOptions) -> bool:
+    """判斷網址是否較像下載檔案而非可遞迴的 HTML 頁面。"""
+    rules = options.download_link_rules
+    parsed = urlparse(url)
+    path = (parsed.path or "").lower()
+    if "." in path.rsplit("/", 1)[-1]:
+        extension = path.rsplit(".", 1)[-1]
+        if extension in set(rules.get("extensions") or []):
+            return True
+
+    if any(keyword in path for keyword in (rules.get("path_keywords") or [])):
+        return True
+
+    query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    query_keys = set(rules.get("query_keys") or [])
+    query_value_keywords = rules.get("query_value_keywords") or []
+    for key, value in query_pairs:
+        key_lower = key.lower()
+        value_lower = value.lower()
+        if key_lower in query_keys:
+            return True
+        if any(keyword in value_lower for keyword in query_value_keywords):
+            return True
+    return False
+
+
 def _browser_fetch_status(full_url: str, context: ScanContext, original_status: str) -> str:
     """改用瀏覽器嘗試開啟網址，補強 requests 無法判斷的情況。"""
     try:
@@ -228,33 +424,30 @@ def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, c
         full_url = link.strip()
     else:
         full_url = urljoin(base_url, link).strip()
+    visit_key = _get_visit_key(full_url, options)
 
-    if full_url in options.avoid_urls:
+    if _is_avoid_url(full_url, options):
         status = SKIPPED_MARKER
-    elif full_url in context.visited_link and options.skip_visited:
-        status = f"{context.visited_link[full_url]} (已檢查過網址)"
+    elif options.skip_visited and (visit_key in context.visited_link or full_url in context.visited_link):
+        cached_status = context.visited_link.get(visit_key, context.visited_link.get(full_url))
+        status = f"{cached_status} (已檢查過網址)"
     else:
         protocol = urlparse(full_url).scheme
         try:
             response = _requests_get(full_url, options.headers, options.timeout, allow_redirects=True, referer=base_url)
             status = str(response.status_code)
             content_length = len(response.content)
-            real_url = response.url
-            domain1 = urlparse(full_url).netloc
-            domain2 = urlparse(real_url).netloc
-            if status == "200" and domain1 != domain2:
-                response = _requests_get(
-                    full_url,
-                    options.headers,
-                    options.timeout,
-                    allow_redirects=False,
-                    referer=base_url,
-                )
-                status = f"200 重定向：{response.status_code} 到 {real_url}"
             if status == "200" and content_length == 0:
                 status = EMPTY_CONTENT_MARKER
-            elif status == "200" and _looks_like_spa_shell(response):
-                status = SPA_SHELL_MARKER
+            elif status == "200":
+                redirect_status = _classify_redirect(full_url, response, options)
+                soft_404_reason = _detect_soft_404(response, options)
+                if soft_404_reason:
+                    status = f"{SOFT_404_MARKER}：{soft_404_reason}"
+                elif _looks_like_spa_shell(response):
+                    status = SPA_SHELL_MARKER
+                elif redirect_status:
+                    status = redirect_status
         except requests.exceptions.ConnectTimeout as exc:
             status = f"連線逾時：{link}  錯誤訊息：{exc}"
         except requests.exceptions.ConnectionError as exc:
@@ -290,11 +483,16 @@ def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, c
         elif protocol == "http" and not _is_local_http_target(full_url):
             status = f"{status} {HTTP_WARNING_MARKER}"
 
-        context.visited_link[full_url] = status
+        context.visited_link[visit_key] = status
 
     message = f"檢查: {link} ... 狀態: {status} ... 文字: {link_text}"
     if "200" in status:
-        if HTTP_WARNING_MARKER in status or EMPTY_CONTENT_MARKER in status:
+        if (
+            HTTP_WARNING_MARKER in status
+            or EMPTY_CONTENT_MARKER in status
+            or SOFT_404_MARKER in status
+            or SUSPICIOUS_REDIRECT_MARKER in status
+        ):
             context.push("warning", message)
         else:
             context.push("info", message)
@@ -310,7 +508,7 @@ def get_links(url: str, options: ScanOptions, context: ScanContext) -> tuple[lis
         response = _requests_get(url.strip(), options.headers, options.timeout, allow_redirects=True, referer=url)
         real_url = response.url
         real_domain = _normalized_hostname(real_url)
-        if domain != real_domain:
+        if _get_visit_key(url, options) != _get_visit_key(real_url, options) and domain != real_domain:
             return ([], [], [], [])
 
         dammit = UnicodeDammit(response.content, ["utf-8", "latin-1", "iso-8859-1", "windows-1251"])
@@ -373,9 +571,10 @@ def get_links(url: str, options: ScanOptions, context: ScanContext) -> tuple[lis
 
 def scan_site(start_url: str, depth_limit: int, options: ScanOptions, context: ScanContext) -> list[dict]:
     """使用佇列方式掃描指定網站並回傳結果。"""
+    normalized_start_url = _get_visit_key(start_url, options)
     visited_url = set()
-    queue = deque([(start_url, 0)])
-    queued_url = {start_url}
+    queue = deque([(start_url, normalized_start_url, 0)])
+    queued_url = {normalized_start_url}
     all_err_links = []
     start_domain = _normalized_hostname(start_url)
 
@@ -383,17 +582,17 @@ def scan_site(start_url: str, depth_limit: int, options: ScanOptions, context: S
         if context.stopped():
             break
 
-        url, current_depth = queue.popleft()
-        queued_url.discard(url)
-        if url in options.avoid_urls:
+        url, normalized_url, current_depth = queue.popleft()
+        queued_url.discard(normalized_url)
+        if _is_avoid_url(url, options):
             continue
-        if not _is_html_like_url(url):
+        if not _is_html_like_url(url, options):
             continue
-        if url in visited_url or current_depth > depth_limit:
+        if normalized_url in visited_url or current_depth > depth_limit:
             continue
 
         context.push("info", f"第 {current_depth} 層連結： {url}")
-        visited_url.add(url)
+        visited_url.add(normalized_url)
 
         internal_links, external_links, no_alt_links, http_links = get_links(url, options, context)
         if internal_links:
@@ -437,11 +636,14 @@ def scan_site(start_url: str, depth_limit: int, options: ScanOptions, context: S
             if (link, link_text) in error_internal_set:
                 continue
             absolute_link = urljoin(url, link).strip()
+            normalized_link = _get_visit_key(absolute_link, options)
             if _normalized_hostname(absolute_link) != start_domain:
                 continue
-            if absolute_link not in visited_url and absolute_link not in queued_url:
-                queue.append((absolute_link, current_depth + 1))
-                queued_url.add(absolute_link)
+            if _is_probable_download_url(absolute_link, options):
+                continue
+            if normalized_link not in visited_url and normalized_link not in queued_url:
+                queue.append((absolute_link, normalized_link, current_depth + 1))
+                queued_url.add(normalized_link)
 
     return all_err_links
 

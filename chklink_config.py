@@ -1,3 +1,4 @@
+import copy
 import os
 import shutil
 from urllib.parse import urlparse
@@ -23,6 +24,93 @@ DEFAULT_SETUP_URL = f"{DEFAULT_RELEASE_BASE_URL}{DEFAULT_SETUP_FILE}"
 APP_NAME = "chkLink"
 APP_DISPLAY_NAME = "網頁失效連結掃描工具"
 DEFAULT_APP_VERSION = "1.4"
+DEFAULT_URL_NORMALIZATION = {
+    "drop_fragment": "yes",
+    "lowercase_scheme_host": "yes",
+    "strip_default_port": "yes",
+    "collapse_slashes": "yes",
+    "strip_trailing_slash": "no",
+    "sort_query_params": "no",
+    "remove_query_params": [
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "fbclid",
+        "gclid",
+        "msclkid",
+    ],
+}
+DEFAULT_DOWNLOAD_LINK_RULES = {
+    "extensions": [
+        "7z",
+        "csv",
+        "doc",
+        "docx",
+        "exe",
+        "gz",
+        "iso",
+        "jpg",
+        "jpeg",
+        "mp3",
+        "mp4",
+        "pdf",
+        "png",
+        "ppt",
+        "pptx",
+        "rar",
+        "rtf",
+        "tar",
+        "tif",
+        "tiff",
+        "txt",
+        "xls",
+        "xlsx",
+        "zip",
+    ],
+    "path_keywords": [
+        "/download",
+        "/downloads",
+        "/attachment",
+        "/attachments",
+        "/file",
+        "/files",
+    ],
+    "query_keys": ["download", "attachment", "file", "filename"],
+    "query_value_keywords": ["download", "attachment"],
+}
+DEFAULT_SOFT_404_RULES = {
+    "enabled": "yes",
+    "title_keywords": [
+        "404",
+        "not found",
+        "page not found",
+        "找不到頁面",
+        "查無此頁",
+        "頁面不存在",
+    ],
+    "body_keywords": [
+        "404",
+        "not found",
+        "page not found",
+        "找不到頁面",
+        "查無此頁",
+        "頁面不存在",
+        "查無資料",
+        "無此資料",
+        "很抱歉",
+    ],
+    "url_keywords": ["404", "notfound", "not-found", "missing", "error"],
+    "max_text_length": 1200,
+    "min_keyword_hits": 2,
+}
+DEFAULT_REDIRECT_RULES = {
+    "classify_redirects": "yes",
+    "suspicious_login_keywords": ["login", "signin", "sso", "auth"],
+    "suspicious_error_keywords": ["404", "notfound", "not-found", "missing", "error"],
+    "treat_cross_domain_as_warning": "no",
+}
 
 LEGACY_RUNTIME_FILES = {
     "config.yaml": DEFAULT_CONFIG_FILE,
@@ -106,6 +194,10 @@ def default_setting() -> dict:
             "https://www.ndc.gov.tw/cp.aspx?n=32A75A78342B669D",
         ],
         "scan_urls": ["https://www.ncut.edu.tw/"],
+        "url_normalization": copy.deepcopy(DEFAULT_URL_NORMALIZATION),
+        "download_link_rules": copy.deepcopy(DEFAULT_DOWNLOAD_LINK_RULES),
+        "soft_404_rules": copy.deepcopy(DEFAULT_SOFT_404_RULES),
+        "redirect_rules": copy.deepcopy(DEFAULT_REDIRECT_RULES),
     }
 
 
@@ -199,6 +291,11 @@ def normalize_setting(setting: dict, documents_dir: str) -> tuple[dict, bool]:
         setting["skip_visited"] = "yes"
         updated = True
 
+    updated = _merge_missing_defaults(setting, "url_normalization", DEFAULT_URL_NORMALIZATION) or updated
+    updated = _merge_missing_defaults(setting, "download_link_rules", DEFAULT_DOWNLOAD_LINK_RULES) or updated
+    updated = _merge_missing_defaults(setting, "soft_404_rules", DEFAULT_SOFT_404_RULES) or updated
+    updated = _merge_missing_defaults(setting, "redirect_rules", DEFAULT_REDIRECT_RULES) or updated
+
     return setting, updated
 
 
@@ -251,6 +348,22 @@ def normalize_headers(headers: dict) -> dict:
     return normalized
 
 
+def normalize_string_list(values, field_name: str, lowercase: bool = False) -> list[str]:
+    """驗證字串清單，可選擇統一轉成小寫。"""
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        raise ValueError(f"{field_name} 必須是清單。")
+
+    normalized = []
+    for index, value in enumerate(values, start=1):
+        text = str(value).strip()
+        if not text:
+            continue
+        normalized.append(text.lower() if lowercase else text)
+    return normalized
+
+
 def validate_url_list(urls: list[str], field_name: str, require_non_empty: bool = False) -> list[str]:
     """驗證網址清單，只接受 http/https。"""
     if urls is None:
@@ -269,3 +382,142 @@ def validate_url_list(urls: list[str], field_name: str, require_non_empty: bool 
     if require_non_empty and not normalized:
         raise ValueError(f"{field_name} 至少要有一筆有效網址。")
     return normalized
+
+
+def resolve_scan_advanced_settings(setting: dict) -> dict:
+    """解析掃描核心的進階設定。"""
+    url_normalization = setting.get("url_normalization") or {}
+    download_link_rules = setting.get("download_link_rules") or {}
+    soft_404_rules = setting.get("soft_404_rules") or {}
+    redirect_rules = setting.get("redirect_rules") or {}
+
+    return {
+        "url_normalization": {
+            "drop_fragment": parse_yes_no(
+                url_normalization.get("drop_fragment", DEFAULT_URL_NORMALIZATION["drop_fragment"]),
+                "url_normalization.drop_fragment",
+            ),
+            "lowercase_scheme_host": parse_yes_no(
+                url_normalization.get("lowercase_scheme_host", DEFAULT_URL_NORMALIZATION["lowercase_scheme_host"]),
+                "url_normalization.lowercase_scheme_host",
+            ),
+            "strip_default_port": parse_yes_no(
+                url_normalization.get("strip_default_port", DEFAULT_URL_NORMALIZATION["strip_default_port"]),
+                "url_normalization.strip_default_port",
+            ),
+            "collapse_slashes": parse_yes_no(
+                url_normalization.get("collapse_slashes", DEFAULT_URL_NORMALIZATION["collapse_slashes"]),
+                "url_normalization.collapse_slashes",
+            ),
+            "strip_trailing_slash": parse_yes_no(
+                url_normalization.get("strip_trailing_slash", DEFAULT_URL_NORMALIZATION["strip_trailing_slash"]),
+                "url_normalization.strip_trailing_slash",
+            ),
+            "sort_query_params": parse_yes_no(
+                url_normalization.get("sort_query_params", DEFAULT_URL_NORMALIZATION["sort_query_params"]),
+                "url_normalization.sort_query_params",
+            ),
+            "remove_query_params": normalize_string_list(
+                url_normalization.get("remove_query_params", DEFAULT_URL_NORMALIZATION["remove_query_params"]),
+                "url_normalization.remove_query_params",
+                lowercase=True,
+            ),
+        },
+        "download_link_rules": {
+            "extensions": normalize_string_list(
+                download_link_rules.get("extensions", DEFAULT_DOWNLOAD_LINK_RULES["extensions"]),
+                "download_link_rules.extensions",
+                lowercase=True,
+            ),
+            "path_keywords": normalize_string_list(
+                download_link_rules.get("path_keywords", DEFAULT_DOWNLOAD_LINK_RULES["path_keywords"]),
+                "download_link_rules.path_keywords",
+                lowercase=True,
+            ),
+            "query_keys": normalize_string_list(
+                download_link_rules.get("query_keys", DEFAULT_DOWNLOAD_LINK_RULES["query_keys"]),
+                "download_link_rules.query_keys",
+                lowercase=True,
+            ),
+            "query_value_keywords": normalize_string_list(
+                download_link_rules.get("query_value_keywords", DEFAULT_DOWNLOAD_LINK_RULES["query_value_keywords"]),
+                "download_link_rules.query_value_keywords",
+                lowercase=True,
+            ),
+        },
+        "soft_404_rules": {
+            "enabled": parse_yes_no(
+                soft_404_rules.get("enabled", DEFAULT_SOFT_404_RULES["enabled"]),
+                "soft_404_rules.enabled",
+            ),
+            "title_keywords": normalize_string_list(
+                soft_404_rules.get("title_keywords", DEFAULT_SOFT_404_RULES["title_keywords"]),
+                "soft_404_rules.title_keywords",
+                lowercase=True,
+            ),
+            "body_keywords": normalize_string_list(
+                soft_404_rules.get("body_keywords", DEFAULT_SOFT_404_RULES["body_keywords"]),
+                "soft_404_rules.body_keywords",
+                lowercase=True,
+            ),
+            "url_keywords": normalize_string_list(
+                soft_404_rules.get("url_keywords", DEFAULT_SOFT_404_RULES["url_keywords"]),
+                "soft_404_rules.url_keywords",
+                lowercase=True,
+            ),
+            "max_text_length": parse_positive_int(
+                soft_404_rules.get("max_text_length", DEFAULT_SOFT_404_RULES["max_text_length"]),
+                "soft_404_rules.max_text_length",
+            ),
+            "min_keyword_hits": parse_positive_int(
+                soft_404_rules.get("min_keyword_hits", DEFAULT_SOFT_404_RULES["min_keyword_hits"]),
+                "soft_404_rules.min_keyword_hits",
+            ),
+        },
+        "redirect_rules": {
+            "classify_redirects": parse_yes_no(
+                redirect_rules.get("classify_redirects", DEFAULT_REDIRECT_RULES["classify_redirects"]),
+                "redirect_rules.classify_redirects",
+            ),
+            "suspicious_login_keywords": normalize_string_list(
+                redirect_rules.get(
+                    "suspicious_login_keywords",
+                    DEFAULT_REDIRECT_RULES["suspicious_login_keywords"],
+                ),
+                "redirect_rules.suspicious_login_keywords",
+                lowercase=True,
+            ),
+            "suspicious_error_keywords": normalize_string_list(
+                redirect_rules.get(
+                    "suspicious_error_keywords",
+                    DEFAULT_REDIRECT_RULES["suspicious_error_keywords"],
+                ),
+                "redirect_rules.suspicious_error_keywords",
+                lowercase=True,
+            ),
+            "treat_cross_domain_as_warning": parse_yes_no(
+                redirect_rules.get(
+                    "treat_cross_domain_as_warning",
+                    DEFAULT_REDIRECT_RULES["treat_cross_domain_as_warning"],
+                ),
+                "redirect_rules.treat_cross_domain_as_warning",
+            ),
+        },
+    }
+
+
+def _merge_missing_defaults(setting: dict, key: str, default_value: dict) -> bool:
+    """只補齊缺少的巢狀預設值，不覆蓋既有內容。"""
+    current_value = setting.get(key)
+    if current_value is None:
+        setting[key] = copy.deepcopy(default_value)
+        return True
+    if not isinstance(current_value, dict):
+        return False
+
+    updated = False
+    for child_key, child_default in default_value.items():
+        if child_key not in current_value or current_value[child_key] is None:
+            current_value[child_key] = copy.deepcopy(child_default)
+            updated = True
+    return updated
