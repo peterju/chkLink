@@ -102,7 +102,7 @@ def run_update():
         return tuple(parts)
 
     try:
-        local_version_info = app_config.ensure_local_version()
+        local_version_info = app_config.ensure_local_version(app_config.DEFAULT_LOCAL_VERSION_PATH)
         current_setting = app_config.read_config(config_file)
         remote_version_url = current_setting.get('remote_version_url', app_config.DEFAULT_REMOTE_VERSION_URL)
         setup_url = current_setting.get('setup_url', app_config.DEFAULT_SETUP_URL)
@@ -127,13 +127,13 @@ def run_update():
         if answer != 'yes':
             return
 
-        app_config.ensure_update_cmd()
+        app_config.ensure_update_cmd(app_config.DEFAULT_UPDATE_CMD_PATH)
         show_info_message("資訊", "開始下載新版安裝程式，請稍候...")
         urllib.request.urlretrieve(setup_url, setup_file)
         if not os.path.exists(setup_file):
             raise FileNotFoundError(f"找不到下載後的安裝程式：{setup_file}")
 
-        subprocess.Popen(['cmd', '/c', app_config.DEFAULT_UPDATE_CMD_FILE, setup_file], cwd=os.getcwd())
+        subprocess.Popen(['cmd', '/c', app_config.DEFAULT_UPDATE_CMD_PATH, setup_file], cwd=app_config.APP_BASE_DIR)
         run_on_ui_thread(lambda: form.after(300, form.destroy))
     except Exception as exc:
         show_warning_message("升級失敗", f"無法完成升級流程：{exc}")
@@ -236,71 +236,80 @@ def queued_link_check(scan_request: dict) -> list:
 
     start_time = datetime.now()  # 取得開始時間
     scan_urls = scan_request['scan_urls']
-    for start_url in scan_urls:
-        if stop_scan:
-            break  # 中斷掃描
-        url_domain = urlparse(start_url).netloc  # 取得網域
-        current_time = datetime.now()  # 取得目前時間
-        filename = f"{url_domain}_{current_time.strftime('%m%d_%H%M')}"  # 建立檔案名稱，格式為 domain_月日_時分
-        logger = core.create_logger(scan_request['report_dir'], filename)  # 建立 logger
-        msg = f"=》開始掃描 {url_domain}..."
-        logger.info(msg)
-        append_log(msg, "INFO")
-
-        options = core.ScanOptions(
-            headers=scan_request['headers'],
-            avoid_urls=scan_request['avoid_urls'],
-            timeout=scan_request['timeout'],
-            alt_must=scan_request['alt_must'] == 'yes',
-            check_http=scan_request['check_http'] == 'yes',
-            skip_visited=scan_request['skip_visited'],
-        )
-
-        def emit(level: str, message: str) -> None:
-            tag = {
-                'error': 'ERROR',
-                'warning': 'WARNING',
-                'info': 'INFO',
-            }.get(level, 'INFO')
-            append_log(message, tag)
-
-        context = core.ScanContext(
-            logger=logger,
-            visited_link=visited_link,
-            browser=browser,
-            emit=emit,
-            should_stop=lambda: stop_scan,
-        )
-        all_err_links = core.scan_site(start_url, scan_request['layer'], options, context)
-        report_dir = scan_request['report_dir']
-        if all_err_links:
-            core.write_report(report_dir, filename, all_err_links, include_http_links=True)  # 產生報告
-            err_count = sum([len(rec['error_links']) for rec in all_err_links])
-            msg = f"=》掃描 {url_domain} 完成，共有 {err_count} 個錯誤連結。"
+    scan_completed = True
+    try:
+        for start_url in scan_urls:
+            if stop_scan:
+                break  # 中斷掃描
+            url_domain = urlparse(start_url).netloc  # 取得網域
+            current_time = datetime.now()  # 取得目前時間
+            filename = f"{url_domain}_{current_time.strftime('%m%d_%H%M')}"  # 建立檔案名稱，格式為 domain_月日_時分
+            logger = core.create_logger(scan_request['report_dir'], filename)  # 建立 logger
+            msg = f"=》開始掃描 {url_domain}..."
             logger.info(msg)
-            append_log(msg, "SUCCESS")
-            msg = f"=》報告已存放於 {report_dir}..."
+            append_log(msg, "INFO")
+
+            options = core.ScanOptions(
+                headers=scan_request['headers'],
+                avoid_urls=scan_request['avoid_urls'],
+                timeout=scan_request['timeout'],
+                alt_must=scan_request['alt_must'] == 'yes',
+                check_http=scan_request['check_http'] == 'yes',
+                skip_visited=scan_request['skip_visited'],
+            )
+
+            def emit(level: str, message: str) -> None:
+                tag = {
+                    'error': 'ERROR',
+                    'warning': 'WARNING',
+                    'info': 'INFO',
+                }.get(level, 'INFO')
+                append_log(message, tag)
+
+            context = core.ScanContext(
+                logger=logger,
+                visited_link=visited_link,
+                browser=browser,
+                emit=emit,
+                should_stop=lambda: stop_scan,
+            )
+            all_err_links = core.scan_site(start_url, scan_request['layer'], options, context)
+            report_dir = scan_request['report_dir']
+            if all_err_links:
+                core.write_report(report_dir, filename, all_err_links, include_http_links=True)  # 產生報告
+                err_count = sum([len(rec['error_links']) for rec in all_err_links])
+                msg = f"=》掃描 {url_domain} 完成，共有 {err_count} 個錯誤連結。"
+                logger.info(msg)
+                append_log(msg, "SUCCESS")
+                msg = f"=》報告已存放於 {report_dir}..."
+                logger.info(msg)
+                append_log(msg, "SUCCESS")
+            else:
+                msg = f"=》太棒了！{url_domain} 沒有錯誤連結。"
+                logger.info(msg)
+                append_log(msg, "SUCCESS")
+    except Exception as exc:
+        scan_completed = False
+        if logger is not None:
+            logger.exception("掃描期間發生未預期錯誤")
+        append_log(f"掃描期間發生未預期錯誤：{exc}", "ERROR")
+        show_warning_message("掃描失敗", f"掃描期間發生未預期錯誤：{exc}")
+    finally:
+        if browser is not None:
+            browser.quit()  # 關閉瀏覽器
+        core.save_visited_link(visted_link_file, visited_link)  # 儲存已檢查過的連結
+        set_scan_controls(False)
+        end_time = datetime.now()  # 取得結束時間
+        hours, remainder = divmod((end_time - start_time).seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        msg = f"=》全部掃描完成！共花費 {hours} 小時 {minutes} 分 {seconds} 秒。"
+        if logger is not None:
             logger.info(msg)
-            append_log(msg, "SUCCESS")
-        else:
-            msg = f"=》太棒了！{url_domain} 沒有錯誤連結。"
-            logger.info(msg)
-            append_log(msg, "SUCCESS")
+            core.close_logger(logger)
+        append_log(msg, "SUCCESS")
 
-    # 掃描結束
-    browser.quit()  # 關閉瀏覽器
-    core.save_visited_link(visted_link_file, visited_link)  # 儲存已檢查過的連結
-
-    set_scan_controls(False)
-    end_time = datetime.now()  # 取得結束時間
-    hours, remainder = divmod((end_time - start_time).seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    msg = f"=》全部掃描完成！共花費 {hours} 小時 {minutes} 分 {seconds} 秒。"
-    logger.info(msg)
-    append_log(msg, "SUCCESS")
-
-    # 移除 logger 所有的 handler
-    core.close_logger(logger)
+    if not scan_completed:
+        return []
 
     answer = ask_question_message("資訊", "掃描完成！是否要開啟檔案所在目錄？")
     if answer == 'yes':
@@ -354,14 +363,14 @@ def save_config() -> None:
 # 設定全域變數
 stop_scan = False
 app_config.migrate_legacy_runtime_files()
-config_file = app_config.DEFAULT_CONFIG_FILE
+config_file = app_config.DEFAULT_CONFIG_PATH
 setting = app_config.read_config(config_file)  # 讀取設定檔 data\config.yaml，若設定檔存在則讀取，否則建立設定檔
 
 # 檢查並補充缺少的設定
 setting, updated = app_config.normalize_setting(setting, os.path.join(os.environ['USERPROFILE'], 'Documents'))
 local_version = (
-    app_config.load_yaml(app_config.DEFAULT_LOCAL_VERSION_FILE)
-    if os.path.exists(app_config.DEFAULT_LOCAL_VERSION_FILE)
+    app_config.load_yaml(app_config.DEFAULT_LOCAL_VERSION_PATH)
+    if os.path.exists(app_config.DEFAULT_LOCAL_VERSION_PATH)
     else {'version': app_config.DEFAULT_APP_VERSION}
 )
 
@@ -373,7 +382,7 @@ if updated:
 # 其它全域變數與設定
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # 關閉 SSL 不安全的警告訊息
 logger = None  # 定義 logger
-visted_link_file = app_config.DEFAULT_VISITED_LINK_FILE  # 已檢查過的連結檔案
+visted_link_file = app_config.DEFAULT_VISITED_LINK_PATH  # 已檢查過的連結檔案
 visited_link = core.load_visited_link(visted_link_file)  # 載入已檢查過的連結檔案，供儲存已檢查過的連結與回應狀態碼
 browser = None  # 定義瀏覽器物件
 

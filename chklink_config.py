@@ -4,12 +4,17 @@ from urllib.parse import urlparse
 
 from ruamel.yaml import YAML
 
+APP_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = "data"
 DEFAULT_TEMPLATE_FILE = "config.yaml-default"
 DEFAULT_CONFIG_FILE = os.path.join(DATA_DIR, "config.yaml")
 DEFAULT_LOCAL_VERSION_FILE = os.path.join(DATA_DIR, "LocalVersion.yaml")
 DEFAULT_UPDATE_CMD_FILE = os.path.join(DATA_DIR, "update.cmd")
 DEFAULT_VISITED_LINK_FILE = os.path.join(DATA_DIR, "visited_link.yaml")
+DEFAULT_CONFIG_PATH = os.path.join(APP_BASE_DIR, DEFAULT_CONFIG_FILE)
+DEFAULT_LOCAL_VERSION_PATH = os.path.join(APP_BASE_DIR, DEFAULT_LOCAL_VERSION_FILE)
+DEFAULT_UPDATE_CMD_PATH = os.path.join(APP_BASE_DIR, DEFAULT_UPDATE_CMD_FILE)
+DEFAULT_VISITED_LINK_PATH = os.path.join(APP_BASE_DIR, DEFAULT_VISITED_LINK_FILE)
 DEFAULT_REMOTE_VERSION_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/installer/RemoteVersion.yaml"
 DEFAULT_SETUP_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/installer/chklink_setup.exe"
 APP_NAME = "chkLink"
@@ -42,19 +47,19 @@ def dump_yaml(path: str, data: dict) -> None:
         yaml.dump(data, file)
 
 
-def ensure_data_dir(base_dir: str = ".") -> str:
+def ensure_data_dir(base_dir: str = APP_BASE_DIR) -> str:
     """確保 data 目錄存在並回傳完整路徑。"""
     data_dir = os.path.join(base_dir, DATA_DIR)
     os.makedirs(data_dir, exist_ok=True)
     return data_dir
 
 
-def runtime_path(relative_path: str, base_dir: str = ".") -> str:
+def runtime_path(relative_path: str, base_dir: str = APP_BASE_DIR) -> str:
     """將執行期相對路徑轉成實際完整路徑。"""
     return os.path.join(base_dir, relative_path)
 
 
-def migrate_legacy_runtime_files(base_dir: str = ".") -> None:
+def migrate_legacy_runtime_files(base_dir: str = APP_BASE_DIR) -> None:
     """將舊版放在根目錄的執行期檔案搬到 data 目錄。"""
     ensure_data_dir(base_dir)
     for old_name, new_relative_path in LEGACY_RUNTIME_FILES.items():
