@@ -15,17 +15,22 @@
 
 ## Build and release commands / 建置與發佈指令
 
-- Stage 1 build: `make.cmd`
-- 第 1 階段：`make.cmd`
-- Purpose: compile GUI and CLI, update `data\LocalVersion.yaml`, and write `installer\<version>\RemoteVersion.yaml`
-- 作用：編譯 GUI 與 CLI，更新 `data\LocalVersion.yaml`，並產生 `installer\<版本>\RemoteVersion.yaml`
+- Stage 1 build: `make_exec.cmd`
+- 第 1 階段：`make_exec.cmd`
+- Purpose: compile GUI and CLI, ensure `data\update.cmd`, and write `installer\<version>\RemoteVersion.yaml`
+- 作用：編譯 GUI 與 CLI，確保 `data\update.cmd` 存在，並產生 `installer\<版本>\RemoteVersion.yaml`
 - GUI output: `out\chklink.dist\chklink.exe`
 - GUI 輸出：`out\chklink.dist\chklink.exe`
 - CLI output: `out\chklink_cli.exe`
 - CLI 輸出：`out\chklink_cli.exe`
 
-- Stage 2 setup packaging: `make_setup.cmd`
-- 第 2 階段：`make_setup.cmd`
+- Stage 2 app signing: `make_sign_app.cmd`
+- 第 2 階段：`make_sign_app.cmd`
+- Purpose: sign `out\chklink.dist\chklink.exe` and `out\chklink_cli.exe` through [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1) with `-Target app`
+- 作用：透過 [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1) 搭配 `-Target app` 對 `out\chklink.dist\chklink.exe` 與 `out\chklink_cli.exe` 加簽
+
+- Stage 3 setup packaging: `make_setup.cmd`
+- 第 3 階段：`make_setup.cmd`
 - Purpose: build `installer\<version>\chklink_setup.exe` through [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1) and [installer_template.iss](/D:/pyTest/chkLink/installer_template.iss)
 - 作用：透過 [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1) 與 [installer_template.iss](/D:/pyTest/chkLink/installer_template.iss) 產生 `installer\<版本>\chklink_setup.exe`
 - `installer_template.iss` should stay as a stable template.
@@ -33,14 +38,16 @@
 - `build_installer.ps1` generates `installer\build.iss` and passes that generated file to Inno Setup.
 - [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1) 會產生 `installer\build.iss`，再把這份生成檔交給 Inno Setup 編譯。
 
-- Stage 3 signing: `make_sign.cmd`
-- 第 3 階段：`make_sign.cmd`
-- Purpose: sign three files through [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1)
-- 作用：透過 [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1) 簽三個發佈檔案
-- Signed files / 簽章目標：
-- `out\chklink.dist\chklink.exe`
-- `out\chklink_cli.exe`
+- Stage 4 setup signing: `make_sign_setup.cmd`
+- 第 4 階段：`make_sign_setup.cmd`
+- Purpose: sign `installer\<version>\chklink_setup.exe` through [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1) with `-Target setup`
+- 作用：透過 [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1) 搭配 `-Target setup` 對 `installer\<版本>\chklink_setup.exe` 加簽
 - `installer\<version>\chklink_setup.exe`
+
+- Interactive menu: `make.cmd`
+- 互動式選單：`make.cmd`
+- Purpose: present steps `1 / 2 / 3 / 4` for manual release operations
+- 作用：提供 `1 / 2 / 3 / 4` 的選單入口，方便依序手動執行建置流程
 
 ## Dev environment tips / 開發環境注意事項
 
@@ -88,6 +95,8 @@
 - Installer 輸出固定放在 `installer\<版本>\`。
 - The installer must not include `data\config.yaml` or `data\visited_link.yaml`, to avoid overwriting user settings and cache on upgrade.
 - Installer 不可打包 `data\config.yaml` 與 `data\visited_link.yaml`，以免升級時覆蓋使用者設定與快取。
+- The running app version must come from `DEFAULT_APP_VERSION`, not from `data\LocalVersion.yaml`.
+- 執行中的程式版本必須以 `DEFAULT_APP_VERSION` 為準，不再依賴 `data\LocalVersion.yaml`。
 - Auto-update is installer-based, not single-exe replacement based.
 - 自動更新採 installer 覆蓋安裝模式，不是單一 exe 替換模式。
 
@@ -99,6 +108,8 @@
 - 請使用三段式版本號，例如 `1.4.0`
 - Build scripts and installer output paths depend on this version string.
 - 建置腳本與 installer 輸出路徑都依賴這個版本字串。
+- `RemoteVersion.yaml` is the only release version file that should be uploaded to the download server.
+- 上傳到下載伺服器的版本檔只保留 `RemoteVersion.yaml`。
 
 ## Scan behavior summary / 掃描行為摘要
 
@@ -133,9 +144,11 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 
 - If you change build or installer flow, re-check:
 - 若調整建置或 installer 流程，請重新檢查：
+- [make_exec.cmd](/D:/pyTest/chkLink/make_exec.cmd)
 - [make.cmd](/D:/pyTest/chkLink/make.cmd)
+- [make_sign_app.cmd](/D:/pyTest/chkLink/make_sign_app.cmd)
 - [make_setup.cmd](/D:/pyTest/chkLink/make_setup.cmd)
-- [make_sign.cmd](/D:/pyTest/chkLink/make_sign.cmd)
+- [make_sign_setup.cmd](/D:/pyTest/chkLink/make_sign_setup.cmd)
 - [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1)
 - [installer_template.iss](/D:/pyTest/chkLink/installer_template.iss)
 - [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1)
@@ -167,5 +180,5 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - 改 CLI 流程：先看 [chklink_cli.py](/D:/pyTest/chkLink/chklink_cli.py)
 - Change installer output or packaging: start with [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1) and [installer_template.iss](/D:/pyTest/chkLink/installer_template.iss)
 - 改 installer 輸出或封裝：先看 [build_installer.ps1](/D:/pyTest/chkLink/build_installer.ps1) 與 [installer_template.iss](/D:/pyTest/chkLink/installer_template.iss)
-- Change signing flow: start with [make_sign.cmd](/D:/pyTest/chkLink/make_sign.cmd) and [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1)
-- 改簽章流程：先看 [make_sign.cmd](/D:/pyTest/chkLink/make_sign.cmd) 與 [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1)
+- Change signing flow: start with [make_sign_app.cmd](/D:/pyTest/chkLink/make_sign_app.cmd), [make_sign_setup.cmd](/D:/pyTest/chkLink/make_sign_setup.cmd), and [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1)
+- 改簽章流程：先看 [make_sign_app.cmd](/D:/pyTest/chkLink/make_sign_app.cmd)、[make_sign_setup.cmd](/D:/pyTest/chkLink/make_sign_setup.cmd) 與 [pycert.ps1](/D:/pyTest/chkLink/pycert.ps1)

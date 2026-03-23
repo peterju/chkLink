@@ -1,4 +1,8 @@
 $ErrorActionPreference = 'Stop'
+param(
+    [ValidateSet('app', 'setup', 'all')]
+    [string]$Target = 'all'
+)
 
 $signToolPath = '..\SignTool\x64\signtool.exe'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -28,11 +32,26 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appVersion)) {
     exit 1
 }
 
-$targetFiles = @(
-    (Join-Path $projectRoot 'out\chklink.dist\chklink.exe'),
-    (Join-Path $projectRoot 'out\chklink_cli.exe'),
-    (Join-Path $projectRoot ("installer\{0}\chklink_setup.exe" -f $appVersion))
-)
+switch ($Target) {
+    'app' {
+        $targetFiles = @(
+            (Join-Path $projectRoot 'out\chklink.dist\chklink.exe'),
+            (Join-Path $projectRoot 'out\chklink_cli.exe')
+        )
+    }
+    'setup' {
+        $targetFiles = @(
+            (Join-Path $projectRoot ("installer\{0}\chklink_setup.exe" -f $appVersion))
+        )
+    }
+    default {
+        $targetFiles = @(
+            (Join-Path $projectRoot 'out\chklink.dist\chklink.exe'),
+            (Join-Path $projectRoot 'out\chklink_cli.exe'),
+            (Join-Path $projectRoot ("installer\{0}\chklink_setup.exe" -f $appVersion))
+        )
+    }
+}
 
 if (-not (Test-Path -LiteralPath $signToolPath)) {
     Write-Host '[ERROR] signtool.exe was not found. Install Windows SDK or update $signToolPath in pycert.ps1.' -ForegroundColor Red

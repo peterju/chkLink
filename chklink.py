@@ -115,7 +115,6 @@ def run_update():
         return tuple(parts)
 
     try:
-        local_version_info = app_config.ensure_local_version(app_config.DEFAULT_LOCAL_VERSION_PATH)
         app_config.read_config(config_file)
         remote_version_url, setup_url = app_config.resolve_update_urls()
         remote_version_file = os.path.join(tempfile.gettempdir(), 'chklink_RemoteVersion.yaml')
@@ -125,7 +124,7 @@ def run_update():
         urllib.request.urlretrieve(remote_version_url, remote_version_file)
         remote_version_info = app_config.load_yaml(remote_version_file)
 
-        local_version = str(local_version_info.get('version', app_config.DEFAULT_APP_VERSION))
+        local_version = str(app_config.DEFAULT_APP_VERSION)
         remote_version = str(remote_version_info.get('version', app_config.DEFAULT_APP_VERSION))
 
         if parse_version(remote_version) <= parse_version(local_version):
@@ -397,10 +396,6 @@ setting = app_config.read_config(config_file)  # 讀取設定檔 data\config.yam
 # 檢查並補充缺少的設定
 setting, updated = app_config.normalize_setting(setting, os.path.join(os.environ['USERPROFILE'], 'Documents'))
 advanced_scan_settings = app_config.resolve_scan_advanced_settings(setting)
-local_version = app_config.ensure_local_version(
-    app_config.DEFAULT_LOCAL_VERSION_PATH,
-    app_config.DEFAULT_APP_VERSION,
-)
 
 # 如果有更新設定，則將更新後的設定存回設定檔
 if updated:
@@ -416,7 +411,7 @@ browser = None  # 定義瀏覽器物件
 
 # 建立主視窗
 form = ttk.Window(themename="superhero")
-form.title(f"{app_config.APP_DISPLAY_NAME} Ver.{local_version.get('version', app_config.DEFAULT_APP_VERSION)}")  # 設定視窗標題
+form.title(f"{app_config.APP_DISPLAY_NAME} Ver.{app_config.DEFAULT_APP_VERSION}")  # 設定視窗標題
 form.geometry("1024x768")  # 設定視窗寬高
 form.resizable(True, True)
 # 指定行和列的權重

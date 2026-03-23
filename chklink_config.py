@@ -9,11 +9,9 @@ APP_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = "data"
 DEFAULT_TEMPLATE_FILE = "config.yaml-default"
 DEFAULT_CONFIG_FILE = os.path.join(DATA_DIR, "config.yaml")
-DEFAULT_LOCAL_VERSION_FILE = os.path.join(DATA_DIR, "LocalVersion.yaml")
 DEFAULT_UPDATE_CMD_FILE = os.path.join(DATA_DIR, "update.cmd")
 DEFAULT_VISITED_LINK_FILE = os.path.join(DATA_DIR, "visited_link.yaml")
 DEFAULT_CONFIG_PATH = os.path.join(APP_BASE_DIR, DEFAULT_CONFIG_FILE)
-DEFAULT_LOCAL_VERSION_PATH = os.path.join(APP_BASE_DIR, DEFAULT_LOCAL_VERSION_FILE)
 DEFAULT_UPDATE_CMD_PATH = os.path.join(APP_BASE_DIR, DEFAULT_UPDATE_CMD_FILE)
 DEFAULT_VISITED_LINK_PATH = os.path.join(APP_BASE_DIR, DEFAULT_VISITED_LINK_FILE)
 DEFAULT_RELEASE_BASE_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/"
@@ -119,11 +117,14 @@ DEFAULT_REQUEST_CONTROL = {
 
 LEGACY_RUNTIME_FILES = {
     "config.yaml": DEFAULT_CONFIG_FILE,
-    "LocalVersion.yaml": DEFAULT_LOCAL_VERSION_FILE,
     "update.cmd": DEFAULT_UPDATE_CMD_FILE,
     "visited_link.yaml": DEFAULT_VISITED_LINK_FILE,
 }
-APP_OWNED_RUNTIME_FILES = {"LocalVersion.yaml", "update.cmd"}
+APP_OWNED_RUNTIME_FILES = {"update.cmd"}
+OBSOLETE_RUNTIME_FILES = [
+    "LocalVersion.yaml",
+    os.path.join(DATA_DIR, "LocalVersion.yaml"),
+]
 
 
 def load_yaml(path: str) -> dict:
@@ -173,6 +174,11 @@ def migrate_legacy_runtime_files(base_dir: str = APP_BASE_DIR) -> None:
         if old_name in APP_OWNED_RUNTIME_FILES:
             os.remove(old_path)
 
+    for obsolete_relative_path in OBSOLETE_RUNTIME_FILES:
+        obsolete_path = runtime_path(obsolete_relative_path, base_dir)
+        if os.path.exists(obsolete_path):
+            os.remove(obsolete_path)
+
 
 def default_setting() -> dict:
     """回傳內建預設設定。"""
@@ -213,23 +219,6 @@ def default_setting() -> dict:
         "redirect_rules": copy.deepcopy(DEFAULT_REDIRECT_RULES),
         "request_control": copy.deepcopy(DEFAULT_REQUEST_CONTROL),
     }
-
-
-def ensure_local_version(
-    version_file: str = DEFAULT_LOCAL_VERSION_FILE,
-    app_version: str = DEFAULT_APP_VERSION,
-) -> dict:
-    """確保本機版本檔存在，且版本號與目前程式版本一致。"""
-    if os.path.exists(version_file):
-        data = load_yaml(version_file)
-        if str(data.get("version", "")).strip() == str(app_version).strip():
-            return data
-    else:
-        data = {}
-
-    data["version"] = app_version
-    dump_yaml(version_file, data)
-    return data
 
 
 def ensure_update_cmd(update_file: str = DEFAULT_UPDATE_CMD_FILE) -> None:

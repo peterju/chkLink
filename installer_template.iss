@@ -6,7 +6,6 @@
 #define MyAppCliExeName "chklink_cli.exe"
 #define MyAppDistDir "{{DIST_DIR}}"
 #define MyAppCliExePath "{{CLI_EXE_PATH}}"
-#define MyAppLocalVersion "{{LOCAL_VERSION_PATH}}"
 #define MyAppUpdateCmd "{{UPDATE_CMD_PATH}}"
 #define MyAppOutputDir "{{OUTPUT_DIR}}"
 #define MySetupIconFile "{{ICON_PATH}}"
@@ -35,7 +34,6 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 Source: "{#MyAppCliExePath}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyAppLocalVersion}"; DestDir: "{app}\data"; Flags: ignoreversion
 Source: "{#MyAppUpdateCmd}"; DestDir: "{app}\data"; Flags: ignoreversion
 
 [Icons]

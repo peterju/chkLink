@@ -44,7 +44,6 @@ setting = app_config.read_config(
 
 # 檢查並補充缺少的設定
 setting, lack_config = app_config.normalize_setting(setting, os.path.join(os.environ['USERPROFILE'], 'Documents'))
-app_config.ensure_local_version(app_version=app_config.DEFAULT_APP_VERSION)
 ADVANCED_SCAN_SETTINGS = app_config.resolve_scan_advanced_settings(setting)
 
 # 如果有新的設定，則將新設定存回設定檔
