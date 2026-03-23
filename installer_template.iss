@@ -1,6 +1,6 @@
 #define MyAppName "chkLink"
 #define MyAppDisplayName "網頁失效連結掃描工具"
-#define MyAppVersion "1.4.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "chkLink"
 #define MyAppExeName "chklink.exe"
 #define MyAppCliExeName "chklink_cli.exe"
@@ -16,7 +16,7 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppDisplayName}
-OutputDir=D:\\pyTest\\chkLink\\installer\\1.4.0
+OutputDir=D:\\pyTest\\chkLink\\installer\\1.4.0
 OutputBaseFilename=chklink_setup
 Compression=lzma
 SolidCompression=yes
@@ -30,11 +30,11 @@ Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
-[Files]
-Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
-Source: "{#MyAppCliExePath}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyAppLocalVersion}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyAppUpdateCmd}"; DestDir: "{app}"; Flags: ignoreversion
+[Files]
+Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "{#MyAppCliExePath}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyAppLocalVersion}"; DestDir: "{app}\data"; Flags: ignoreversion
+Source: "{#MyAppUpdateCmd}"; DestDir: "{app}\data"; Flags: ignoreversion
 
 [Icons]
 Name: "{autodesktop}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon

@@ -314,6 +314,7 @@ Inno Setup 語系檔安裝方式如下：
 - 讀取 `chklink_config.py` 的 `APP_NAME`、`APP_DISPLAY_NAME`、`DEFAULT_APP_VERSION`
 - 重寫 `installer_template.iss` 內的版本、顯示名稱與來源路徑
 - 將 `out\chklink.dist`、`out\chklink_cli.exe`、`data\LocalVersion.yaml`、`data\update.cmd` 一起包進安裝檔
+- 其中 `LocalVersion.yaml` 與 `update.cmd` 會安裝到目標機器的 `data\` 目錄，需與程式實際讀取路徑一致
 - 呼叫 Inno Setup 6 的 `ISCC.exe`
 - 產出 `installer\<版本>\chklink_setup.exe`
 
