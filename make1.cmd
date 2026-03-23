@@ -28,4 +28,5 @@ if errorlevel 1 (
 
 echo [完成] 安裝檔已產生完成。
 echo [完成] 請至 installer\chklink_setup.exe 取得安裝程式。
+echo [完成] 請至 installer\RemoteVersion.yaml 取得版本檔。
 exit /b 0

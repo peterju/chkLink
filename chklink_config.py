@@ -1,17 +1,15 @@
 import os
-import shutil
-import tempfile
-import urllib.request
 from urllib.parse import urlparse
 
-from py7zr import SevenZipFile
 from ruamel.yaml import YAML
 
 DEFAULT_TEMPLATE_FILE = "config.yaml-default"
 DEFAULT_LOCAL_VERSION_FILE = "LocalVersion.yaml"
 DEFAULT_UPDATE_CMD_FILE = "update.cmd"
-DEFAULT_RESOURCES_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/resources.7z"
+DEFAULT_REMOTE_VERSION_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/installer/RemoteVersion.yaml"
+DEFAULT_SETUP_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/installer/chklink_setup.exe"
 APP_NAME = "chkLink"
+APP_DISPLAY_NAME = "網頁失效連結掃描工具"
 DEFAULT_APP_VERSION = "1.4"
 
 
@@ -41,6 +39,8 @@ def default_setting() -> dict:
         "check_http": "yes",
         "skip_visited": "yes",
         "rpt_folder": "",
+        "remote_version_url": DEFAULT_REMOTE_VERSION_URL,
+        "setup_url": DEFAULT_SETUP_URL,
         "headers": {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "Accept-Encoding": "gzip, deflate, br",
@@ -90,72 +90,25 @@ def ensure_update_cmd(update_file: str = DEFAULT_UPDATE_CMD_FILE) -> None:
 
     lines = [
         "@echo off",
-        "echo 進行新舊版執行檔替換作業...",
-        "if exist chklink.exe taskkill /f /im chklink.exe 2>nul",
-        "timeout 1",
-        "if exist chklink_upd.exe move /Y chklink.exe chklink.exe.old",
-        "if exist chklink_upd.exe move /Y chklink_upd.exe chklink.exe",
-        "if not exist chklink_upd.exe echo 更新成功！",
-        "if exist chklink_upd.exe echo 更新失敗！",
-        "start chklink.exe",
-        "timeout 6",
+        "chcp 950 >nul",
+        "setlocal",
+        "set \"SETUP_PATH=%~1\"",
+        "if \"%SETUP_PATH%\"==\"\" (",
+        "    echo [錯誤] 缺少安裝程式路徑。",
+        "    exit /b 1",
+        ")",
+        "if not exist \"%SETUP_PATH%\" (",
+        "    echo [錯誤] 找不到安裝程式：%SETUP_PATH%",
+        "    exit /b 1",
+        ")",
+        "echo [資訊] 準備啟動新版安裝程式...",
+        "taskkill /f /im chklink.exe 2>nul",
+        "timeout /t 1 /nobreak >nul",
+        "start \"\" \"%SETUP_PATH%\"",
+        "exit /b 0",
     ]
-    with open(update_file, "w", encoding="utf-8", newline="\r\n") as file:
+    with open(update_file, "w", encoding="cp950", newline="\r\n") as file:
         file.write("\r\n".join(lines) + "\r\n")
-
-
-def download_resources(
-    resources_url: str = DEFAULT_RESOURCES_URL,
-    extract_to: str = ".",
-    required_files: list[str] | None = None,
-) -> bool:
-    """下載 resources.7z，僅補齊缺少的檔案；成功回傳 True。"""
-    fd, archive_path = tempfile.mkstemp(suffix=".7z")
-    os.close(fd)
-    temp_dir = tempfile.mkdtemp()
-    try:
-        urllib.request.urlretrieve(resources_url, archive_path)
-        with SevenZipFile(archive_path, "r") as archive:
-            archive.extractall(path=temp_dir)
-
-        if required_files is None:
-            required_files = []
-
-        for filename in required_files:
-            source_path = os.path.join(temp_dir, filename)
-            target_path = os.path.join(extract_to, filename)
-            if os.path.exists(source_path) and not os.path.exists(target_path):
-                shutil.copyfile(source_path, target_path)
-        return True
-    except Exception:
-        return False
-    finally:
-        if os.path.exists(archive_path):
-            os.remove(archive_path)
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-def ensure_runtime_files(
-    cfg_file: str = "config.yaml",
-    template_file: str = DEFAULT_TEMPLATE_FILE,
-    resources_url: str = DEFAULT_RESOURCES_URL,
-) -> dict:
-    """以 config.yaml 是否存在作為初始化觸發，下載優先、建立為備援。"""
-    status = {
-        "downloaded_resources": False,
-        "created_config": False,
-    }
-    if not os.path.exists(cfg_file):
-        status["downloaded_resources"] = download_resources(
-            resources_url=resources_url,
-            required_files=[cfg_file],
-        )
-
-    if not os.path.exists(cfg_file):
-        create_config(cfg_file, template_file=template_file)
-        status["created_config"] = True
-
-    return status
 
 
 def create_config(cfg_file: str, template_file: str = DEFAULT_TEMPLATE_FILE) -> dict:
@@ -200,6 +153,14 @@ def normalize_setting(setting: dict, documents_dir: str) -> tuple[dict, bool]:
 
     if not setting.get("skip_visited"):
         setting["skip_visited"] = "yes"
+        updated = True
+
+    if not setting.get("remote_version_url"):
+        setting["remote_version_url"] = DEFAULT_REMOTE_VERSION_URL
+        updated = True
+
+    if not setting.get("setup_url"):
+        setting["setup_url"] = DEFAULT_SETUP_URL
         updated = True
 
     return setting, updated

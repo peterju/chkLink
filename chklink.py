@@ -1,18 +1,18 @@
 import os
 import subprocess
+import tempfile
 import threading
 import tkinter as tk
 from datetime import datetime
 from idlelib.tooltip import Hovertip
 from tkinter import filedialog, messagebox, scrolledtext
 from urllib.parse import urlparse
+import urllib.request
 
 import ttkbootstrap as ttk  # https://github.com/israel-dryer/ttkbootstrap
 import urllib3
-import wget
 import chklink_core as core
 import chklink_config as app_config
-from py7zr import SevenZipFile
 
 form = None
 
@@ -92,11 +92,51 @@ def ask_question_message(title: str, message: str) -> str:
 
 def run_update():
     '''更新程式'''
-    show_warning_message(
-        "升級說明",
-        "目前正式發佈方式已改為 standalone + Inno Setup。\n"
-        "請下載並執行新版安裝程式進行升級，不再提供程式內自動更新。",
-    )
+    def parse_version(version_text: str) -> tuple:
+        parts = []
+        for item in str(version_text).strip().split('.'):
+            try:
+                parts.append(int(item))
+            except ValueError:
+                parts.append(item)
+        return tuple(parts)
+
+    try:
+        local_version_info = app_config.ensure_local_version()
+        current_setting = app_config.read_config(config_file)
+        remote_version_url = current_setting.get('remote_version_url', app_config.DEFAULT_REMOTE_VERSION_URL)
+        setup_url = current_setting.get('setup_url', app_config.DEFAULT_SETUP_URL)
+        remote_version_file = os.path.join(tempfile.gettempdir(), 'chklink_RemoteVersion.yaml')
+        setup_file = os.path.join(tempfile.gettempdir(), 'chklink_setup.exe')
+
+        show_info_message("資訊", "開始檢查是否有新版本，請稍候...")
+        urllib.request.urlretrieve(remote_version_url, remote_version_file)
+        remote_version_info = app_config.load_yaml(remote_version_file)
+
+        local_version = str(local_version_info.get('version', app_config.DEFAULT_APP_VERSION))
+        remote_version = str(remote_version_info.get('version', app_config.DEFAULT_APP_VERSION))
+
+        if parse_version(remote_version) <= parse_version(local_version):
+            show_info_message("資訊", f"目前已是最新版本：{local_version}")
+            return
+
+        answer = ask_question_message(
+            "資訊",
+            f"目前版本：{local_version}\n伺服器版本：{remote_version}\n\n是否下載並啟動新版安裝程式？",
+        )
+        if answer != 'yes':
+            return
+
+        app_config.ensure_update_cmd()
+        show_info_message("資訊", "開始下載新版安裝程式，請稍候...")
+        urllib.request.urlretrieve(setup_url, setup_file)
+        if not os.path.exists(setup_file):
+            raise FileNotFoundError(f"找不到下載後的安裝程式：{setup_file}")
+
+        subprocess.Popen(['cmd', '/c', 'update.cmd', setup_file], cwd=os.getcwd())
+        run_on_ui_thread(lambda: form.after(300, form.destroy))
+    except Exception as exc:
+        show_warning_message("升級失敗", f"無法完成升級流程：{exc}")
 
 
 def resource_path(*parts: str) -> str:
@@ -315,9 +355,6 @@ def save_config() -> None:
 stop_scan = False
 
 config_file = 'config.yaml'
-app_config.ensure_runtime_files(
-    cfg_file=config_file,
-)
 setting = app_config.read_config(config_file)  # 讀取設定檔 config.yaml，若設定檔存在則讀取，否則建立設定檔
 
 # 檢查並補充缺少的設定
@@ -342,7 +379,7 @@ browser = None  # 定義瀏覽器物件
 
 # 建立主視窗
 form = ttk.Window(themename="superhero")
-form.title(f"網頁失效連結掃描工具 Ver.{local_version.get('version', app_config.DEFAULT_APP_VERSION)}")  # 設定視窗標題
+form.title(f"{app_config.APP_DISPLAY_NAME} Ver.{local_version.get('version', app_config.DEFAULT_APP_VERSION)}")  # 設定視窗標題
 form.geometry("1024x768")  # 設定視窗寬高
 form.resizable(True, True)
 # 指定行和列的權重
@@ -447,8 +484,8 @@ frame2_1.grid(row=0, column=0, padx=1, pady=1, sticky="nsew")
 # 建立儲存設定按鈕
 cfg_save_btn = ttk.Button(page2, text="儲存設定", command=save_config, bootstyle="info", cursor='hand2')
 cfg_save_btn.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
-# 建立升級說明按鈕
-run_upd_btn = ttk.Button(page2, text="升級說明", command=run_update, bootstyle="warning", cursor='hand2')
+# 建立檢查更新按鈕
+run_upd_btn = ttk.Button(page2, text="檢查更新", command=run_update, bootstyle="warning", cursor='hand2')
 run_upd_btn.grid(row=0, column=2, rowspan=2, padx=10, pady=10, sticky="nsew")
 
 # 建立檢查連結的層數Label

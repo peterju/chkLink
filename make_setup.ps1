@@ -4,11 +4,14 @@ $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configPath = Join-Path $projectRoot 'chklink_config.py'
 $issPath = Join-Path $projectRoot 'chklink_setup.iss'
 $distDir = Join-Path $projectRoot 'out\chklink.dist'
-$configDefaultPath = Join-Path $projectRoot 'config.yaml-default'
 $localVersionPath = Join-Path $projectRoot 'LocalVersion.yaml'
 $updateCmdPath = Join-Path $projectRoot 'update.cmd'
 $iconPath = Join-Path $projectRoot 'chklink.ico'
 $installerDir = Join-Path $projectRoot 'installer'
+$pythonExe = Join-Path $projectRoot '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $pythonExe)) {
+    $pythonExe = 'python'
+}
 
 if (-not (Test-Path -LiteralPath $configPath)) {
     Write-Host '[ERROR] chklink_config.py not found.' -ForegroundColor Red
@@ -20,19 +23,18 @@ if (-not (Test-Path -LiteralPath $distDir)) {
     exit 1
 }
 
-if (-not (Test-Path -LiteralPath $configDefaultPath)) {
-    Write-Host '[ERROR] config.yaml-default not found.' -ForegroundColor Red
-    exit 1
-}
-
 if (-not (Test-Path -LiteralPath $localVersionPath)) {
     Write-Host '[ERROR] LocalVersion.yaml not found. Run make.cmd first.' -ForegroundColor Red
     exit 1
 }
 
 if (-not (Test-Path -LiteralPath $updateCmdPath)) {
-    Write-Host '[ERROR] update.cmd not found.' -ForegroundColor Red
-    exit 1
+    Write-Host '[INFO] update.cmd not found. Creating it now...'
+    & $pythonExe -c "import chklink_config as c; c.ensure_update_cmd()"
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $updateCmdPath)) {
+        Write-Host '[ERROR] update.cmd not found.' -ForegroundColor Red
+        exit 1
+    }
 }
 
 if (-not (Test-Path -LiteralPath $iconPath)) {
@@ -40,14 +42,15 @@ if (-not (Test-Path -LiteralPath $iconPath)) {
     exit 1
 }
 
-$pythonExe = Join-Path $projectRoot '.venv\Scripts\python.exe'
-if (-not (Test-Path -LiteralPath $pythonExe)) {
-    $pythonExe = 'python'
-}
-
 $appName = & $pythonExe -c "import chklink_config as c; print(c.APP_NAME)"
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appName)) {
     Write-Host '[ERROR] Unable to read APP_NAME from chklink_config.py.' -ForegroundColor Red
+    exit 1
+}
+
+$appDisplayName = & $pythonExe -c "import chklink_config as c; print(c.APP_DISPLAY_NAME)"
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appDisplayName)) {
+    Write-Host '[ERROR] Unable to read APP_DISPLAY_NAME from chklink_config.py.' -ForegroundColor Red
     exit 1
 }
 
@@ -80,21 +83,21 @@ if (-not (Test-Path -LiteralPath $installerDir)) {
 
 $issContent = @"
 #define MyAppName "$appName"
+#define MyAppDisplayName "$appDisplayName"
 #define MyAppVersion "$appVersion"
 #define MyAppPublisher "$appName"
 #define MyAppExeName "chklink.exe"
 #define MyAppDistDir "$($distDir -replace '\\','\\')"
-#define MyAppConfigDefault "$($configDefaultPath -replace '\\','\\')"
 #define MyAppLocalVersion "$($localVersionPath -replace '\\','\\')"
 #define MyAppUpdateCmd "$($updateCmdPath -replace '\\','\\')"
 
 [Setup]
 AppId={{A1E42E19-0B41-4B4D-BF51-6DDE2911A0E1}
-AppName={#MyAppName}
+AppName={#MyAppDisplayName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+DefaultGroupName={#MyAppDisplayName}
 OutputDir=$($installerDir -replace '\\','\\')
 OutputBaseFilename=chklink_setup
 Compression=lzma
@@ -111,16 +114,15 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
-Source: "{#MyAppConfigDefault}"; DestDir: "{app}"; DestName: "config.yaml"; Flags: ignoreversion
 Source: "{#MyAppLocalVersion}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppUpdateCmd}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppDisplayName}"; Flags: nowait postinstall skipifsilent
 "@
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)

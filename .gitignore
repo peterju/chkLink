@@ -4,6 +4,8 @@ deploy/
 out/
 .build-cache/
 nuitka-crash-report.xml
+installer/chklink_setup.exe
+installer/RemoteVersion.yaml
 test.py
 test1.py
 *copy.py
