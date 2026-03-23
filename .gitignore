@@ -1,5 +1,6 @@
 # 自訂排除項目
 history/
+backup/
 out/
 .build-cache/
 .vscode/
