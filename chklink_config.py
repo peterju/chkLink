@@ -123,6 +123,7 @@ LEGACY_RUNTIME_FILES = {
     "update.cmd": DEFAULT_UPDATE_CMD_FILE,
     "visited_link.yaml": DEFAULT_VISITED_LINK_FILE,
 }
+APP_OWNED_RUNTIME_FILES = {"LocalVersion.yaml", "update.cmd"}
 
 
 def load_yaml(path: str) -> dict:
@@ -161,9 +162,16 @@ def migrate_legacy_runtime_files(base_dir: str = APP_BASE_DIR) -> None:
     for old_name, new_relative_path in LEGACY_RUNTIME_FILES.items():
         old_path = os.path.join(base_dir, old_name)
         new_path = runtime_path(new_relative_path, base_dir)
-        if os.path.exists(old_path) and not os.path.exists(new_path):
+        if not os.path.exists(old_path):
+            continue
+
+        if not os.path.exists(new_path):
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             shutil.move(old_path, new_path)
+            continue
+
+        if old_name in APP_OWNED_RUNTIME_FILES:
+            os.remove(old_path)
 
 
 def default_setting() -> dict:
@@ -211,13 +219,15 @@ def ensure_local_version(
     version_file: str = DEFAULT_LOCAL_VERSION_FILE,
     app_version: str = DEFAULT_APP_VERSION,
 ) -> dict:
-    """確保本機版本檔存在；若不存在則建立預設內容。"""
+    """確保本機版本檔存在，且版本號與目前程式版本一致。"""
     if os.path.exists(version_file):
         data = load_yaml(version_file)
-        if data.get("version"):
+        if str(data.get("version", "")).strip() == str(app_version).strip():
             return data
+    else:
+        data = {}
 
-    data = {"version": app_version}
+    data["version"] = app_version
     dump_yaml(version_file, data)
     return data
 

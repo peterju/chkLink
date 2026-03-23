@@ -397,10 +397,9 @@ setting = app_config.read_config(config_file)  # 讀取設定檔 data\config.yam
 # 檢查並補充缺少的設定
 setting, updated = app_config.normalize_setting(setting, os.path.join(os.environ['USERPROFILE'], 'Documents'))
 advanced_scan_settings = app_config.resolve_scan_advanced_settings(setting)
-local_version = (
-    app_config.load_yaml(app_config.DEFAULT_LOCAL_VERSION_PATH)
-    if os.path.exists(app_config.DEFAULT_LOCAL_VERSION_PATH)
-    else {'version': app_config.DEFAULT_APP_VERSION}
+local_version = app_config.ensure_local_version(
+    app_config.DEFAULT_LOCAL_VERSION_PATH,
+    app_config.DEFAULT_APP_VERSION,
 )
 
 # 如果有更新設定，則將更新後的設定存回設定檔
