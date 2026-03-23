@@ -43,21 +43,29 @@ if (-not (Test-Path -LiteralPath $iconPath)) {
     exit 1
 }
 
-$appName = & $pythonExe -c "import chklink_config as c; print(c.APP_NAME)"
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appName)) {
-    Write-Host '[ERROR] Unable to read APP_NAME from chklink_config.py.' -ForegroundColor Red
+$appInfoJson = & $pythonExe -c "import json, chklink_config as c; print(json.dumps({'app_name': c.APP_NAME, 'app_display_name': c.APP_DISPLAY_NAME, 'app_version': c.DEFAULT_APP_VERSION}))"
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appInfoJson)) {
+    Write-Host '[ERROR] Unable to read application metadata from chklink_config.py.' -ForegroundColor Red
     exit 1
 }
 
-$appDisplayName = & $pythonExe -c "import chklink_config as c; print(c.APP_DISPLAY_NAME)"
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appDisplayName)) {
-    Write-Host '[ERROR] Unable to read APP_DISPLAY_NAME from chklink_config.py.' -ForegroundColor Red
+$appInfo = $appInfoJson | ConvertFrom-Json
+$appName = [string]$appInfo.app_name
+$appDisplayName = [string]$appInfo.app_display_name
+$appVersion = [string]$appInfo.app_version
+
+if ([string]::IsNullOrWhiteSpace($appName)) {
+    Write-Host '[ERROR] APP_NAME is empty.' -ForegroundColor Red
     exit 1
 }
 
-$appVersion = & $pythonExe -c "import chklink_config as c; print(c.DEFAULT_APP_VERSION)"
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($appVersion)) {
-    Write-Host '[ERROR] Unable to read DEFAULT_APP_VERSION from chklink_config.py.' -ForegroundColor Red
+if ([string]::IsNullOrWhiteSpace($appDisplayName)) {
+    Write-Host '[ERROR] APP_DISPLAY_NAME is empty.' -ForegroundColor Red
+    exit 1
+}
+
+if ([string]::IsNullOrWhiteSpace($appVersion)) {
+    Write-Host '[ERROR] DEFAULT_APP_VERSION is empty.' -ForegroundColor Red
     exit 1
 }
 
@@ -111,7 +119,7 @@ DisableProgramGroupPage=yes
 Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional tasks:"
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
@@ -123,11 +131,11 @@ Name: "{autodesktop}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"; Ta
 Name: "{group}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppDisplayName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppDisplayName}}"; Flags: nowait postinstall skipifsilent
 "@
 
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($issPath, $issContent.Replace("`n", "`r`n"), $utf8NoBom)
+$utf8Bom = New-Object System.Text.UTF8Encoding($true)
+[System.IO.File]::WriteAllText($issPath, $issContent.Replace("`n", "`r`n"), $utf8Bom)
 
 Write-Host 'Compiling setup with Inno Setup...'
 & $isccExe $issPath

@@ -6,6 +6,8 @@ timeout: 8
 alt_must: no
 # 是否檢查 http 連結
 check_http: yes
+# 是否略過已成功檢查過的網址
+skip_visited: yes
 # 定義存放檢查報告的目錄
 rpt_folder:
 # 伴隨請求的標頭

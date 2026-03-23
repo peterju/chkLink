@@ -15,8 +15,11 @@ DEFAULT_CONFIG_PATH = os.path.join(APP_BASE_DIR, DEFAULT_CONFIG_FILE)
 DEFAULT_LOCAL_VERSION_PATH = os.path.join(APP_BASE_DIR, DEFAULT_LOCAL_VERSION_FILE)
 DEFAULT_UPDATE_CMD_PATH = os.path.join(APP_BASE_DIR, DEFAULT_UPDATE_CMD_FILE)
 DEFAULT_VISITED_LINK_PATH = os.path.join(APP_BASE_DIR, DEFAULT_VISITED_LINK_FILE)
-DEFAULT_REMOTE_VERSION_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/installer/RemoteVersion.yaml"
-DEFAULT_SETUP_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/installer/chklink_setup.exe"
+DEFAULT_RELEASE_BASE_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/"
+DEFAULT_REMOTE_VERSION_FILE = "RemoteVersion.yaml"
+DEFAULT_SETUP_FILE = "chklink_setup.exe"
+DEFAULT_REMOTE_VERSION_URL = f"{DEFAULT_RELEASE_BASE_URL}{DEFAULT_REMOTE_VERSION_FILE}"
+DEFAULT_SETUP_URL = f"{DEFAULT_RELEASE_BASE_URL}{DEFAULT_SETUP_FILE}"
 APP_NAME = "chkLink"
 APP_DISPLAY_NAME = "網頁失效連結掃描工具"
 DEFAULT_APP_VERSION = "1.4"
@@ -79,8 +82,6 @@ def default_setting() -> dict:
         "check_http": "yes",
         "skip_visited": "yes",
         "rpt_folder": "",
-        "remote_version_url": DEFAULT_REMOTE_VERSION_URL,
-        "setup_url": DEFAULT_SETUP_URL,
         "headers": {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "Accept-Encoding": "gzip, deflate, br",
@@ -198,15 +199,20 @@ def normalize_setting(setting: dict, documents_dir: str) -> tuple[dict, bool]:
         setting["skip_visited"] = "yes"
         updated = True
 
-    if not setting.get("remote_version_url"):
-        setting["remote_version_url"] = DEFAULT_REMOTE_VERSION_URL
-        updated = True
-
-    if not setting.get("setup_url"):
-        setting["setup_url"] = DEFAULT_SETUP_URL
-        updated = True
-
     return setting, updated
+
+
+def compose_release_url(base_url: str, file_name: str) -> str:
+    """將基底網址與檔名組成下載網址。"""
+    return str(base_url).rstrip("/") + "/" + str(file_name).lstrip("/")
+
+
+def resolve_update_urls() -> tuple[str, str]:
+    """依內建常數解析更新用網址。"""
+    return (
+        compose_release_url(DEFAULT_RELEASE_BASE_URL, DEFAULT_REMOTE_VERSION_FILE),
+        compose_release_url(DEFAULT_RELEASE_BASE_URL, DEFAULT_SETUP_FILE),
+    )
 
 
 def parse_positive_int(value, field_name: str, minimum: int = 1) -> int:

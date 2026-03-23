@@ -103,9 +103,8 @@ def run_update():
 
     try:
         local_version_info = app_config.ensure_local_version(app_config.DEFAULT_LOCAL_VERSION_PATH)
-        current_setting = app_config.read_config(config_file)
-        remote_version_url = current_setting.get('remote_version_url', app_config.DEFAULT_REMOTE_VERSION_URL)
-        setup_url = current_setting.get('setup_url', app_config.DEFAULT_SETUP_URL)
+        app_config.read_config(config_file)
+        remote_version_url, setup_url = app_config.resolve_update_urls()
         remote_version_file = os.path.join(tempfile.gettempdir(), 'chklink_RemoteVersion.yaml')
         setup_file = os.path.join(tempfile.gettempdir(), 'chklink_setup.exe')
 
@@ -135,6 +134,11 @@ def run_update():
 
         subprocess.Popen(['cmd', '/c', app_config.DEFAULT_UPDATE_CMD_PATH, setup_file], cwd=app_config.APP_BASE_DIR)
         run_on_ui_thread(lambda: form.after(300, form.destroy))
+    except urllib.error.HTTPError as exc:
+        show_warning_message(
+            "升級失敗",
+            f"無法下載更新檔案：HTTP {exc.code}\n\nRemoteVersion URL:\n{remote_version_url}\n\nSetup URL:\n{setup_url}",
+        )
     except Exception as exc:
         show_warning_message("升級失敗", f"無法完成升級流程：{exc}")
 

@@ -1,5 +1,5 @@
-#define MyAppName "chkLink"
-#define MyAppDisplayName "������ĳs�����y�u��"
+﻿#define MyAppName "chkLink"
+#define MyAppDisplayName "網頁失效連結掃描工具"
 #define MyAppVersion "1.4"
 #define MyAppPublisher "chkLink"
 #define MyAppExeName "chklink.exe"
@@ -22,11 +22,11 @@ WizardStyle=modern
 SetupIconFile=D:\\pyTest\\chkLink\\chklink.ico
 DisableProgramGroupPage=yes
 
-[Languages]
-Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
-
-[Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional tasks:"
+[Languages]
+Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
@@ -38,4 +38,4 @@ Name: "{autodesktop}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"; Ta
 Name: "{group}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppDisplayName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppDisplayName}}"; Flags: nowait postinstall skipifsilent

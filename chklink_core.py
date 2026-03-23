@@ -127,12 +127,27 @@ def save_visited_link(visited_link_file: str, visited_link: dict) -> None:
                 yaml.dump({key: value}, file)
 
 
-def _requests_get(url: str, headers: dict, timeout: int, allow_redirects: bool = True) -> requests.Response:
+def _requests_get(
+    url: str,
+    headers: dict,
+    timeout: int,
+    allow_redirects: bool = True,
+    referer: str | None = None,
+) -> requests.Response:
     """依協定包裝 requests.get。"""
+    request_headers = dict(headers)
+    if referer:
+        request_headers["Referer"] = referer
     protocol = urlparse(url).scheme
     if protocol == "https":
-        return requests.get(url, headers=headers, timeout=timeout, allow_redirects=allow_redirects)
-    return requests.get(url, headers=headers, timeout=timeout, allow_redirects=allow_redirects, verify=False)
+        return requests.get(url, headers=request_headers, timeout=timeout, allow_redirects=allow_redirects)
+    return requests.get(
+        url,
+        headers=request_headers,
+        timeout=timeout,
+        allow_redirects=allow_redirects,
+        verify=False,
+    )
 
 
 def _is_problem_status(status: str) -> bool:
@@ -221,14 +236,20 @@ def check_link(base_url: str, link: str, link_text: str, options: ScanOptions, c
     else:
         protocol = urlparse(full_url).scheme
         try:
-            response = _requests_get(full_url, options.headers, options.timeout, allow_redirects=True)
+            response = _requests_get(full_url, options.headers, options.timeout, allow_redirects=True, referer=base_url)
             status = str(response.status_code)
             content_length = len(response.content)
             real_url = response.url
             domain1 = urlparse(full_url).netloc
             domain2 = urlparse(real_url).netloc
             if status == "200" and domain1 != domain2:
-                response = _requests_get(full_url, options.headers, options.timeout, allow_redirects=False)
+                response = _requests_get(
+                    full_url,
+                    options.headers,
+                    options.timeout,
+                    allow_redirects=False,
+                    referer=base_url,
+                )
                 status = f"200 重定向：{response.status_code} 到 {real_url}"
             if status == "200" and content_length == 0:
                 status = EMPTY_CONTENT_MARKER
@@ -286,7 +307,7 @@ def get_links(url: str, options: ScanOptions, context: ScanContext) -> tuple[lis
     """取得頁面中的內部連結、外部連結、缺少 alt 的圖片與 HTTP 連結。"""
     try:
         domain = _normalized_hostname(url)
-        response = _requests_get(url.strip(), options.headers, options.timeout, allow_redirects=True)
+        response = _requests_get(url.strip(), options.headers, options.timeout, allow_redirects=True, referer=url)
         real_url = response.url
         real_domain = _normalized_hostname(real_url)
         if domain != real_domain:
@@ -299,7 +320,7 @@ def get_links(url: str, options: ScanOptions, context: ScanContext) -> tuple[lis
             _wait, client_url = result["content"].split(";")
             if client_url.strip().lower().startswith("url="):
                 client_url = urljoin(url, client_url.strip()[4:])
-            response = _requests_get(client_url, options.headers, options.timeout, allow_redirects=True)
+            response = _requests_get(client_url, options.headers, options.timeout, allow_redirects=True, referer=url)
             dammit = UnicodeDammit(response.content, ["utf-8", "latin-1", "iso-8859-1", "windows-1251"])
             soup = BeautifulSoup(dammit.unicode_markup, "lxml")
             context.push("info", f"網頁於前端重新導向至：{client_url}")
