@@ -1,8 +1,8 @@
 # 自訂排除項目
 history/
-deploy/
 out/
 .build-cache/
+.vscode/
 nuitka-crash-report.xml
 installer/chklink_setup.exe
 installer/RemoteVersion.yaml
@@ -15,7 +15,6 @@ config.yaml
 data/config.yaml
 data/visited_link.yaml
 *copy.*
-*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
