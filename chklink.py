@@ -23,6 +23,11 @@ def stop_scanning():
     stop_scan = True
 
 
+def close_application() -> None:
+    '''關閉程式'''
+    run_on_ui_thread(lambda: form.destroy() if form is not None else None)
+
+
 def run_on_ui_thread(callback, wait=False):
     '''確保 UI 相關操作由主執行緒執行'''
     if threading.current_thread() is threading.main_thread() or form is None:
@@ -75,10 +80,22 @@ def set_scan_controls(is_scanning: bool) -> None:
     def update():
         if is_scanning:
             analysis_btn.config(state=tk.DISABLED, cursor='X_cursor')
-            stop_btn.config(state=tk.NORMAL, cursor='hand2')
+            stop_btn.config(
+                text="中斷",
+                command=stop_scanning,
+                bootstyle="danger",
+                state=tk.NORMAL,
+                cursor='hand2',
+            )
         else:
             analysis_btn.config(state=tk.NORMAL, cursor='hand2')
-            stop_btn.config(state=tk.DISABLED, cursor='X_cursor')
+            stop_btn.config(
+                text="離開",
+                command=close_application,
+                bootstyle="secondary",
+                state=tk.NORMAL,
+                cursor='hand2',
+            )
 
     run_on_ui_thread(update)
 
@@ -257,9 +274,11 @@ def queued_link_check(scan_request: dict) -> list:
     start_time = datetime.now()  # 取得開始時間
     scan_urls = scan_request['scan_urls']
     scan_completed = True
+    scan_interrupted = False
     try:
         for start_url in scan_urls:
             if stop_scan:
+                scan_interrupted = True
                 break  # 中斷掃描
             url_domain = urlparse(start_url).netloc  # 取得網域
             current_time = datetime.now()  # 取得目前時間
@@ -327,13 +346,16 @@ def queued_link_check(scan_request: dict) -> list:
         end_time = datetime.now()  # 取得結束時間
         hours, remainder = divmod((end_time - start_time).seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        msg = f"=》全部掃描完成！共花費 {hours} 小時 {minutes} 分 {seconds} 秒。"
+        if stop_scan or scan_interrupted:
+            msg = f"=》掃描已中斷，共花費 {hours} 小時 {minutes} 分 {seconds} 秒。"
+        else:
+            msg = f"=》全部掃描完成！共花費 {hours} 小時 {minutes} 分 {seconds} 秒。"
         if logger is not None:
             logger.info(msg)
             core.close_logger(logger)
         append_log(msg, "SUCCESS")
 
-    if not scan_completed:
+    if not scan_completed or stop_scan or scan_interrupted:
         return []
 
     answer = ask_question_message("資訊", "掃描完成！是否要開啟檔案所在目錄？")
@@ -414,6 +436,7 @@ form = ttk.Window(themename="superhero")
 form.title(f"{app_config.APP_DISPLAY_NAME} Ver.{app_config.DEFAULT_APP_VERSION}")  # 設定視窗標題
 form.geometry("1024x768")  # 設定視窗寬高
 form.resizable(True, True)
+form.protocol("WM_DELETE_WINDOW", close_application)
 # 指定行和列的權重
 form.rowconfigure(0, weight=1)
 form.columnconfigure(0, weight=1)
@@ -480,11 +503,11 @@ analysis_btn = ttk.Button(
 Hovertip(analysis_btn, '按下按鈕開始掃描網址內的失效連結')
 analysis_btn.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
 
-# 建立中斷按鈕
+# 建立離開 / 中斷按鈕
 stop_btn = ttk.Button(
-    frame1_1, text="中斷", command=stop_scanning, bootstyle="danger", cursor='X_cursor', state=tk.DISABLED
+    frame1_1, text="離開", command=close_application, bootstyle="secondary", cursor='hand2'
 )
-Hovertip(stop_btn, '按下按鈕中斷掃描')
+Hovertip(stop_btn, '未掃描時可離開程式；掃描進行中會切換為中斷')
 stop_btn.grid(row=0, column=3, padx=5, pady=5, sticky="nsew")
 
 # 建立 frame1_2
