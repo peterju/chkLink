@@ -46,7 +46,8 @@
 - `make_sign_app.cmd`：第 2 階段，對 GUI / CLI 執行檔加簽
 - `make_setup.cmd`：第 3 階段，建立對應版本的 installer
 - `make_sign_setup.cmd`：第 4 階段，對 installer 加簽
-- `make.cmd`：提供 `1 / 2 / 3 / 4` 的互動式建置選單
+- `make_sha256.cmd`：可選步驟，為 installer 與 `RemoteVersion.yaml` 產生 `SHA256.txt`
+- `make.cmd`：提供 `1 / 2 / 3 / 4 / 5` 的互動式建置選單
 - `build_installer.ps1`：由 `make_setup.cmd` 呼叫，用來產生 Inno Setup 安裝程式
 - `installer_template.iss`：Inno Setup 穩定模板
 - `data\update.cmd`：啟動新版安裝程式用的批次檔
@@ -386,8 +387,10 @@ Inno Setup 語系檔安裝方式如下：
    - `installer\<版本>\chklink_setup.exe`
 5. 若要對 installer 加簽，再執行 `make_sign_setup.cmd`，它會簽：
    - `installer\<版本>\chklink_setup.exe`
-6. 實際安裝一次，確認安裝介面、捷徑、主程式啟動與版本資訊都正確。
-7. 先上傳 `chklink_setup.exe`，確認可下載後，再上傳 `RemoteVersion.yaml`。
+6. 若要提供雜湊驗證，再執行 `make_sha256.cmd`，產生：
+   - `installer\<版本>\SHA256.txt`
+7. 實際安裝一次，確認安裝介面、捷徑、主程式啟動與版本資訊都正確。
+8. 先上傳 `chklink_setup.exe`，確認可下載後，再上傳 `RemoteVersion.yaml`。
 
 也就是說，日常 build / 發版分工如下：
 
@@ -395,7 +398,8 @@ Inno Setup 語系檔安裝方式如下：
 2. `make_sign_app.cmd`：先對 GUI / CLI 加簽
 3. `make_setup.cmd`：建立 installer
 4. `make_sign_setup.cmd`：最後對 installer 加簽
-5. `make.cmd`：提供 `1 / 2 / 3 / 4` 的互動式選單入口
+5. `make_sha256.cmd`：可選，產生 `SHA256.txt`
+6. `make.cmd`：提供 `1 / 2 / 3 / 4 / 5` 的互動式選單入口
 
 ### 上傳到下載伺服器的檔案
 
@@ -403,6 +407,10 @@ Inno Setup 語系檔安裝方式如下：
 
 - `installer\<版本>\chklink_setup.exe`
 - `installer\<版本>\RemoteVersion.yaml`
+
+若你也想讓使用者能驗證檔案完整性，建議另外附上：
+
+- `installer\<版本>\SHA256.txt`
 
 若你要部署到自己的伺服器，請同時確認：
 

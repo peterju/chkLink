@@ -44,10 +44,15 @@
 - 作用：透過 [pycert.ps1](pycert.ps1) 搭配 `-Target setup` 對 `installer\<版本>\chklink_setup.exe` 加簽
 - `installer\<version>\chklink_setup.exe`
 
+- Optional checksum step: `make_sha256.cmd`
+- 可選雜湊步驟：`make_sha256.cmd`
+- Purpose: generate `installer\<version>\SHA256.txt` for `chklink_setup.exe` and `RemoteVersion.yaml`
+- 作用：為 `chklink_setup.exe` 與 `RemoteVersion.yaml` 產生 `installer\<版本>\SHA256.txt`
+
 - Interactive menu: `make.cmd`
 - 互動式選單：`make.cmd`
-- Purpose: present steps `1 / 2 / 3 / 4` for manual release operations
-- 作用：提供 `1 / 2 / 3 / 4` 的選單入口，方便依序手動執行建置流程
+- Purpose: present steps `1 / 2 / 3 / 4 / 5` for manual release operations
+- 作用：提供 `1 / 2 / 3 / 4 / 5` 的選單入口，方便依序手動執行建置流程
 
 ## Current release workflow / 目前發佈流程
 
@@ -182,6 +187,7 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - [make_sign_app.cmd](make_sign_app.cmd)
 - [make_setup.cmd](make_setup.cmd)
 - [make_sign_setup.cmd](make_sign_setup.cmd)
+- [make_sha256.cmd](make_sha256.cmd)
 - [build_installer.ps1](build_installer.ps1)
 - [installer_template.iss](installer_template.iss)
 - [pycert.ps1](pycert.ps1)
