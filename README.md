@@ -56,7 +56,7 @@
 - `make_setup.cmd`：第 3 階段，建立對應版本的 installer
 - `make_sign_setup.cmd`：第 4 階段，對 installer 加簽
 - `make_sha256.cmd`：可選步驟，為 installer 與 `RemoteVersion.yaml` 產生 `SHA256.txt`
-- `make_github_release.cmd`：整理 GitHub Release 用的版本化檔名與 SHA256 資產
+- `make_github_release.cmd`：整理 GitHub Release 用的版本化檔名與 SHA256 檔案
 - `menu.cmd`：提供 `1 / 2 / 3 / 4 / 5 / 6` 的互動式建置選單
 - `build_installer.ps1`：由 `make_setup.cmd` 呼叫，用來產生 Inno Setup 安裝程式
 - `installer_template.iss`：Inno Setup 穩定模板
@@ -438,7 +438,7 @@ Inno Setup 語系檔安裝方式如下：
 4. `make_sign_setup.cmd`：最後對 installer 加簽
 5. `make_sha256.cmd`：可選，產生 `SHA256.txt`
 6. `menu.cmd`：提供 `1 / 2 / 3 / 4 / 5 / 6` 的互動式選單入口
-7. `make_github_release.cmd`：可選，整理 GitHub Release 資產
+7. `make_github_release.cmd`：可選，整理 GitHub Release 檔案
 
 ### `menu.cmd` 選單與實際腳本的對應
 
@@ -462,7 +462,7 @@ Inno Setup 語系檔安裝方式如下：
 
 - `installer\<版本>\SHA256.txt`
 
-若要準備 GitHub Release 資產，可再執行 `make_github_release.cmd`，它會建立：
+若要準備 GitHub Release 檔案，可再執行 `make_github_release.cmd`，它會建立：
 
 - `release\<版本>\chklink-<version>-win-x64-setup.exe`
 - `release\<版本>\chklink-<version>-RemoteVersion.yaml`
@@ -496,22 +496,29 @@ Inno Setup 語系檔安裝方式如下：
 ## chkLink 1.4.0
 
 ### 本版重點
+
 - 掃描網站內部失效連結
 - 列出頁面中的外部連結
 - 檢查圖片是否缺少 alt
 - 輸出 Excel 報表
+- 補強 URL 正規化、下載判定、soft-404 / redirect 類型判斷
+- 補強 retry、backoff 與每網域節流
+- 提供 SHA256 與 GitHub Release 檔案整理流程
 
 ### 下載檔案
+
 - `chklink-1.4.0-win-x64-setup.exe`：Windows x64 安裝版
 - `chklink-1.4.0-RemoteVersion.yaml`：版本資訊
 - `chklink-1.4.0-SHA256.txt`：雜湊驗證檔
 
 ### 注意事項
-- 首次下載執行時，Windows SmartScreen 或 智慧型應用程式控制(Smart App Control) 仍可能出現提示。
+
+- 首次下載執行時，Windows SmartScreen 或 Smart App Control 仍可能出現提示。
 - 若此版本已確認穩定，且仍遭 Microsoft 防護機制誤判，可再提交檔案到 https://www.microsoft.com/en-us/wdsi/filesubmission 回報。或關閉「智慧型應用程式控制」。
-- 本工具的主要用途是進行網站的失效連結掃描、外部連結列出、圖片 alt 檢查與報表輸出。
+- GUI 預設更新來源仍建議使用組織內部發佈站；GitHub Release 主要提供對外公開下載。
 
 ### SHA256 驗證
+
 請參考 `chklink-1.4.0-SHA256.txt`。
 ```
 
