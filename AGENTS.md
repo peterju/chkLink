@@ -56,8 +56,8 @@
 
 - Interactive menu: `make.cmd`
 - 互動式選單：`make.cmd`
-- Purpose: present steps `1 / 2 / 3 / 4 / 5` for manual release operations
-- 作用：提供 `1 / 2 / 3 / 4 / 5` 的選單入口，方便依序手動執行建置流程
+- Purpose: present steps `1 / 2 / 3 / 4 / 5 / 6` for manual release operations
+- 作用：提供 `1 / 2 / 3 / 4 / 5 / 6` 的選單入口，方便依序手動執行建置流程
 
 ## Current release workflow / 目前發佈流程
 
