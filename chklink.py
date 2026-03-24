@@ -83,7 +83,7 @@ def set_scan_controls(is_scanning: bool) -> None:
             stop_btn.config(
                 text="中斷",
                 command=stop_scanning,
-                bootstyle="danger",
+                style="danger.TButton",
                 state=tk.NORMAL,
                 cursor='hand2',
             )
@@ -92,7 +92,7 @@ def set_scan_controls(is_scanning: bool) -> None:
             stop_btn.config(
                 text="離開",
                 command=close_application,
-                bootstyle="secondary",
+                style="Exit.TButton",
                 state=tk.NORMAL,
                 cursor='hand2',
             )
@@ -437,6 +437,21 @@ form.title(f"{app_config.APP_DISPLAY_NAME} Ver.{app_config.DEFAULT_APP_VERSION}"
 form.geometry("1024x768")  # 設定視窗寬高
 form.resizable(True, True)
 form.protocol("WM_DELETE_WINDOW", close_application)
+style = ttk.Style()
+style.configure(
+    "Exit.TButton",
+    foreground="#ffffff",
+    background="#2b6ea6",
+    bordercolor="#1f5683",
+    darkcolor="#1f5683",
+    lightcolor="#3f86c2",
+    focuscolor="#2b6ea6",
+)
+style.map(
+    "Exit.TButton",
+    background=[("active", "#3f86c2"), ("pressed", "#1f5683")],
+    foreground=[("disabled", "#c5c6c4"), ("active", "#ffffff")],
+)
 # 指定行和列的權重
 form.rowconfigure(0, weight=1)
 form.columnconfigure(0, weight=1)
@@ -505,7 +520,7 @@ analysis_btn.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
 
 # 建立離開 / 中斷按鈕
 stop_btn = ttk.Button(
-    frame1_1, text="離開", command=close_application, bootstyle="secondary", cursor='hand2'
+    frame1_1, text="離開", command=close_application, style="Exit.TButton", cursor='hand2'
 )
 Hovertip(stop_btn, '未掃描時可離開程式；掃描進行中會切換為中斷')
 stop_btn.grid(row=0, column=3, padx=5, pady=5, sticky="nsew")
