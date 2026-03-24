@@ -49,6 +49,11 @@
 - Purpose: generate `installer\<version>\SHA256.txt` for `chklink_setup.exe` and `RemoteVersion.yaml`
 - 作用：為 `chklink_setup.exe` 與 `RemoteVersion.yaml` 產生 `installer\<版本>\SHA256.txt`
 
+- Optional GitHub Release packaging step: `make_github_release.cmd`
+- 可選 GitHub Release 整理步驟：`make_github_release.cmd`
+- Purpose: prepare versioned public-release assets under `release\<version>\`
+- 作用：在 `release\<版本>\` 下整理對外公開發佈用的版本化資產
+
 - Interactive menu: `make.cmd`
 - 互動式選單：`make.cmd`
 - Purpose: present steps `1 / 2 / 3 / 4 / 5` for manual release operations
@@ -62,6 +67,8 @@
 - `make.cmd` 只是選單入口，不是實際的編譯步驟。
 - Upload order matters: upload `chklink_setup.exe` first, then update `RemoteVersion.yaml`.
 - 上傳順序很重要：先上傳 `chklink_setup.exe`，再更新 `RemoteVersion.yaml`。
+- GitHub Release preparation is separate from the in-app update source.
+- GitHub Release 資產整理應與程式內更新來源分離處理。
 
 ## Dev environment tips / 開發環境注意事項
 
@@ -188,6 +195,7 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - [make_setup.cmd](make_setup.cmd)
 - [make_sign_setup.cmd](make_sign_setup.cmd)
 - [make_sha256.cmd](make_sha256.cmd)
+- [make_github_release.cmd](make_github_release.cmd)
 - [build_installer.ps1](build_installer.ps1)
 - [installer_template.iss](installer_template.iss)
 - [pycert.ps1](pycert.ps1)

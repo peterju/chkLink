@@ -1,6 +1,7 @@
 # 自訂排除項目
 /backup/
 /installer/
+/release/
 /out/
 /data/config.yaml
 /data/visited_link.yaml

@@ -47,6 +47,7 @@
 - `make_setup.cmd`：第 3 階段，建立對應版本的 installer
 - `make_sign_setup.cmd`：第 4 階段，對 installer 加簽
 - `make_sha256.cmd`：可選步驟，為 installer 與 `RemoteVersion.yaml` 產生 `SHA256.txt`
+- `make_github_release.cmd`：整理 GitHub Release 用的版本化檔名與 SHA256 資產
 - `make.cmd`：提供 `1 / 2 / 3 / 4 / 5` 的互動式建置選單
 - `build_installer.ps1`：由 `make_setup.cmd` 呼叫，用來產生 Inno Setup 安裝程式
 - `installer_template.iss`：Inno Setup 穩定模板
@@ -400,6 +401,7 @@ Inno Setup 語系檔安裝方式如下：
 4. `make_sign_setup.cmd`：最後對 installer 加簽
 5. `make_sha256.cmd`：可選，產生 `SHA256.txt`
 6. `make.cmd`：提供 `1 / 2 / 3 / 4 / 5` 的互動式選單入口
+7. `make_github_release.cmd`：可選，整理 GitHub Release 資產
 
 ### 上傳到下載伺服器的檔案
 
@@ -411,6 +413,14 @@ Inno Setup 語系檔安裝方式如下：
 若你也想讓使用者能驗證檔案完整性，建議另外附上：
 
 - `installer\<版本>\SHA256.txt`
+
+若要準備 GitHub Release 資產，可再執行 `make_github_release.cmd`，它會建立：
+
+- `release\<版本>\chklink-<version>-win-x64-setup.exe`
+- `release\<版本>\chklink-<version>-RemoteVersion.yaml`
+- `release\<版本>\chklink-<version>-SHA256.txt`
+
+這個步驟只負責整理對外公開發佈檔名，不會改動 GUI 預設更新來源；GUI 預設仍建議指向校內發佈站。
 
 若你要部署到自己的伺服器，請同時確認：
 
