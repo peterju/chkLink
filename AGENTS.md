@@ -129,6 +129,10 @@
 - 版本號唯一來源： [chklink_config.py](chklink_config.py) 的 `DEFAULT_APP_VERSION`
 - Use three-part versions such as `1.4.0`
 - 請使用三段式版本號，例如 `1.4.0`
+- The project follows Semantic Versioning in spirit, but the compatibility surface is the desktop tool behavior rather than a Python library API.
+- 本專案採用 Semantic Versioning 精神，但相容性判斷以桌面工具的對外行為為準，不是以 Python 函式庫 API 為準。
+- Treat GUI / CLI usage, config format, report format, update flow, and release file naming as the effective public interface.
+- 請將 GUI / CLI 使用方式、設定格式、報表格式、更新流程與發佈檔名視為實際的公開介面。
 - Build scripts and installer output paths depend on this version string.
 - 建置腳本與 installer 輸出路徑都依賴這個版本字串。
 - `RemoteVersion.yaml` is the only release version file that should be uploaded to the download server.
