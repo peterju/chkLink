@@ -20,7 +20,7 @@
 1. 主產品是 GUI，CLI 是低曝光輔助入口。
 2. 掃描核心共用在 [chklink_core.py](chklink_core.py)，不要分別在 GUI / CLI 內重複改邏輯。
 3. 執行中的版本號唯一來源是 [chklink_config.py](chklink_config.py) 的 `DEFAULT_APP_VERSION`。
-4. 校內更新來源與 GitHub Release 是兩條分開的發佈線，不要把 `make_github_release.cmd` 產物誤當成 GUI 預設更新來源。
+4. 組織內部更新來源與 GitHub Release 是兩條分開的發佈線，不要把 `make_github_release.cmd` 產物誤當成 GUI 預設更新來源。
 
 ## 專案用途
 
@@ -75,13 +75,13 @@
   - 先看「正式發佈與升級流程」
   - 再看 [build_installer.ps1](build_installer.ps1)、[installer_template.iss](installer_template.iss)、[pycert.ps1](pycert.ps1)
 
-## 角色與真相來源
+## 角色與版本更新的比對來源
 
 - GUI 是主要入口，負責一般使用者操作、更新檢查、掃描與報表。
 - CLI 共用同一套掃描核心，但主要用途是排程、自動化與除錯。
 - 掃描邏輯真相來源在 [chklink_core.py](chklink_core.py)。
 - 版本號真相來源在 [chklink_config.py](chklink_config.py) 的 `DEFAULT_APP_VERSION`。
-- 校內更新版本檔真相來源是 `installer\<版本>\RemoteVersion.yaml`。
+- 版本更新的比對來源是 `installer\<版本>\RemoteVersion.yaml`。
 - 使用者執行期資料是 `data\config.yaml` 與 `data\visited_link.yaml`。
 - `data\update.cmd` 是程式持有的更新輔助檔，不是使用者設定檔。
 
@@ -450,11 +450,11 @@ Inno Setup 語系檔安裝方式如下：
 - `release\<版本>\chklink-<version>-RemoteVersion.yaml`
 - `release\<版本>\chklink-<version>-SHA256.txt`
 
-這個步驟只負責整理對外公開發佈檔名，不會改動 GUI 預設更新來源；GUI 預設仍建議指向校內發佈站。
+這個步驟只負責整理對外公開發佈檔名，不會改動 GUI 預設更新來源；GUI 預設仍建議指向組織內部發佈站。
 
-### 校內更新與 GitHub Release 的分工
+### 組織內部更新與 GitHub Release 的分工
 
-- 校內更新線：
+- 組織內部更新線：
   - 主要給 GUI「檢查更新」使用
   - 使用 `installer\<版本>\chklink_setup.exe`
   - 使用 `installer\<版本>\RemoteVersion.yaml`
@@ -489,9 +489,9 @@ Inno Setup 語系檔安裝方式如下：
 - `chklink-1.4.0-SHA256.txt`：雜湊驗證檔
 
 ### 注意事項
-- 首次下載執行時，Windows SmartScreen 或 Smart App Control 仍可能出現提示。
-- 若此版本已確認穩定，且仍遭 Microsoft 防護機制誤判，可再提交檔案到 https://www.microsoft.com/en-us/wdsi/filesubmission 回報。
-- 本工具的主要用途是校務網站失效連結掃描、外部連結列出、圖片 alt 檢查與報表輸出。
+- 首次下載執行時，Windows SmartScreen 或 智慧型應用程式控制(Smart App Control) 仍可能出現提示。
+- 若此版本已確認穩定，且仍遭 Microsoft 防護機制誤判，可再提交檔案到 https://www.microsoft.com/en-us/wdsi/filesubmission 回報。或關閉「智慧型應用程式控制」。
+- 本工具的主要用途是進行網站的失效連結掃描、外部連結列出、圖片 alt 檢查與報表輸出。
 
 ### SHA256 驗證
 請參考 `chklink-1.4.0-SHA256.txt`。
@@ -540,7 +540,7 @@ Inno Setup 語系檔安裝方式如下：
 - 檔案提交入口：
   - https://www.microsoft.com/en-us/wdsi/filesubmission
 - 提交時建議附上的說明重點：
-  - 這是校務網站失效連結掃描工具
+  - 這是網站失效連結掃描工具
   - 主要用途是檢查網站內部連結是否失效、列出外部連結、檢查圖片 `alt`、並輸出報表
   - 發佈形式為 `chklink_setup.exe` 安裝程式
   - 若已完成簽章，也可一併說明簽章狀態與下載來源
