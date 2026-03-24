@@ -10,8 +10,8 @@ echo [資訊] make_sign_setup.cmd 的作用：對 installer 進行加簽。
 echo [資訊] 這是第 4 步，請先確認 make_setup.cmd 已完成。
 echo [資訊] 準備簽章：
 echo [資訊]   installer\%APP_VERSION%\chklink_setup.exe
-echo [資訊] 開始執行 pycert.ps1 -Target setup ...
-powershell -ExecutionPolicy Bypass -File ".\pycert.ps1" -Target setup
+echo [資訊] 開始執行 sign_files.ps1 -Target setup ...
+powershell -ExecutionPolicy Bypass -File ".\sign_files.ps1" -Target setup
 chcp 950 >nul
 if errorlevel 1 (
     echo [錯誤] installer 加簽失敗。

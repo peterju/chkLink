@@ -8,8 +8,8 @@ echo [資訊] 這是第 2 步，請先確認 make_exec.cmd 已完成。
 echo [資訊] 準備簽章：
 echo [資訊]   1. out\chklink.dist\chklink.exe
 echo [資訊]   2. out\chklink_cli.exe
-echo [資訊] 開始執行 pycert.ps1 -Target app ...
-powershell -ExecutionPolicy Bypass -File ".\pycert.ps1" -Target app
+echo [資訊] 開始執行 sign_files.ps1 -Target app ...
+powershell -ExecutionPolicy Bypass -File ".\sign_files.ps1" -Target app
 chcp 950 >nul
 if errorlevel 1 (
     echo [錯誤] GUI / CLI 加簽失敗。

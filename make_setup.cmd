@@ -8,11 +8,11 @@ if not defined APP_VERSION set "APP_VERSION=(未知版本)"
 
 echo [資訊] make_setup.cmd 的作用：將目前編譯產物封裝為 installer。
 echo [資訊] 這是第 3 步，請先確認 make_exec.cmd 已完成；若需要，請先執行 make_sign_app.cmd。
-echo [資訊] 開始執行 build_installer.ps1...
-powershell -ExecutionPolicy Bypass -File ".\build_installer.ps1"
+echo [資訊] 開始執行 build_setup.ps1...
+powershell -ExecutionPolicy Bypass -File ".\build_setup.ps1"
 chcp 950 >nul
 if errorlevel 1 (
-    echo [錯誤] build_installer.ps1 執行失敗。
+    echo [錯誤] build_setup.ps1 執行失敗。
     exit /b 1
 )
 

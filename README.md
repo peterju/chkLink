@@ -58,10 +58,10 @@
 - `make_sha256.cmd`：可選步驟，為 installer 與 `RemoteVersion.yaml` 產生 `SHA256.txt`
 - `make_github_release.cmd`：整理 GitHub Release 用的版本化檔名與 SHA256 檔案
 - `menu.cmd`：提供 `1 / 2 / 3 / 4 / 5 / 6` 的互動式建置選單
-- `build_installer.ps1`：由 `make_setup.cmd` 呼叫，用來產生 Inno Setup 安裝程式
+- `build_setup.ps1`：由 `make_setup.cmd` 呼叫，用來產生 Inno Setup 安裝程式
 - `installer_template.iss`：Inno Setup 穩定模板
 - `data\update.cmd`：啟動新版安裝程式用的批次檔
-- `pycert.ps1`：由 `make_sign_app.cmd` 與 `make_sign_setup.cmd` 呼叫，用來分階段簽章
+- `sign_files.ps1`：由 `make_sign_app.cmd` 與 `make_sign_setup.cmd` 呼叫，用來分階段簽章
 
 ## 使用與維護地圖
 
@@ -73,7 +73,7 @@
   - 再看 [chklink_core.py](chklink_core.py)
 - 打包與發佈維護者：
   - 先看「正式發佈與升級流程」
-  - 再看 [build_installer.ps1](build_installer.ps1)、[installer_template.iss](installer_template.iss)、[pycert.ps1](pycert.ps1)
+  - 再看 [build_setup.ps1](build_setup.ps1)、[installer_template.iss](installer_template.iss)、[sign_files.ps1](sign_files.ps1)
 
 ## 角色與版本更新的比對來源
 
@@ -356,7 +356,7 @@ Inno Setup 語系檔安裝方式如下：
 4. 將 `ChineseTraditional.isl` 放到 Inno Setup 安裝目錄下的 `Languages` 資料夾，例如：
    - `C:\Program Files (x86)\Inno Setup 6\Languages\ChineseTraditional.isl`
 
-`build_installer.ps1` 會先檢查 `ISCC.exe` 與 `ChineseTraditional.isl` 是否存在，任一缺少都會直接停止。
+`build_setup.ps1` 會先檢查 `ISCC.exe` 與 `ChineseTraditional.isl` 是否存在，任一缺少都會直接停止。
 
 ### 發佈產物的分工
 
@@ -375,11 +375,11 @@ Inno Setup 語系檔安裝方式如下：
 
 三者一致。
 
-`make_sign_app.cmd` 的定位是「第 2 階段：先簽 GUI / CLI」，它會呼叫 `pycert.ps1 -Target app`。
+`make_sign_app.cmd` 的定位是「第 2 階段：先簽 GUI / CLI」，它會呼叫 `sign_files.ps1 -Target app`。
 
-`make_setup.cmd` 的定位是「第 3 階段：建立 installer」，它會直接轉呼叫 `build_installer.ps1`。
+`make_setup.cmd` 的定位是「第 3 階段：建立 installer」，它會直接轉呼叫 `build_setup.ps1`。
 
-`build_installer.ps1` 則負責把編譯產物封裝成安裝程式，它會：
+`build_setup.ps1` 則負責把編譯產物封裝成安裝程式，它會：
 
 - 讀取 `chklink_config.py` 的 `APP_NAME`、`APP_DISPLAY_NAME`、`DEFAULT_APP_VERSION`
 - 讀取 `installer_template.iss` 作為穩定模板
@@ -388,7 +388,7 @@ Inno Setup 語系檔安裝方式如下：
 - 呼叫 Inno Setup 6 的 `ISCC.exe`
 - 產出 `installer\<版本>\chklink_setup.exe`
 
-`make_sign_setup.cmd` 的定位是「第 4 階段：最後再簽 installer」，它會呼叫 `pycert.ps1 -Target setup`。
+`make_sign_setup.cmd` 的定位是「第 4 階段：最後再簽 installer」，它會呼叫 `sign_files.ps1 -Target setup`。
 
 ### 為什麼 installer 不再包含 `data\config.yaml`
 
@@ -528,7 +528,7 @@ Inno Setup 語系檔安裝方式如下：
 
 - 不要把真實的 `Cookie`、token、Authorization header、帳密、或其它登入態資料放進 `config.yaml-default`、`chklink_config.py` 或 README。
 - `data\config.yaml` 與 `data\visited_link.yaml` 屬於執行期檔案，不應提交。
-- `pycert.ps1` 內目前的憑證 thumbprint 不等於私鑰，但若未來改成更敏感的簽章設定，建議改放本機私有設定，不要直接提交。
+- `sign_files.ps1` 內目前的憑證 thumbprint 不等於私鑰，但若未來改成更敏感的簽章設定，建議改放本機私有設定，不要直接提交。
 - 若要公開 repo，建議先自行搜尋一次關鍵字：`Cookie`、`Authorization`、`token`、`password`、`thumbprint`，確認沒有誤放敏感內容。
 
 ### 首次安裝流程
@@ -629,9 +629,9 @@ Inno Setup 語系檔安裝方式如下：
 - installer 會一併安裝 GUI 與 CLI，但只為 GUI 建立桌面與開始功能表捷徑。
 - GUI 是主要對外入口；CLI 採低曝光設計，保留給排程、自動化與除錯用途。
 
-## 為什麼需要 `pycert.ps1`
+## 為什麼需要 `sign_files.ps1`
 
-部分電腦或防毒產品會把新編譯出的執行檔或 installer 視為可疑檔案，甚至直接隔離或刪除。`pycert.ps1` 是用來降低這類問題的簽章腳本，目前支援：
+部分電腦或防毒產品會把新編譯出的執行檔或 installer 視為可疑檔案，甚至直接隔離或刪除。`sign_files.ps1` 是用來降低這類問題的簽章腳本，目前支援：
 
 - `-Target app`：處理 `out\chklink.dist\chklink.exe` 與 `out\chklink_cli.exe`
 - `-Target setup`：處理 `installer\<版本>\chklink_setup.exe`
@@ -664,7 +664,7 @@ Inno Setup 語系檔安裝方式如下：
 2. 卡片已插入，且目前登入帳號有權限使用該私鑰。
 3. 該張卡在 Windows 憑證存放區中可被 `signtool.exe` 看見。
 4. 該憑證實際延伸金鑰用法或金鑰提供者可滿足 Authenticode 簽章需求。
-5. `pycert.ps1` 中指定的 SHA-1 thumbprint 必須對應到目前可用的那張憑證。
+5. `sign_files.ps1` 中指定的 SHA-1 thumbprint 必須對應到目前可用的那張憑證。
 
 若其中任一項不成立，就算你手上有自然人憑證，也可能無法完成加簽。
 
@@ -695,7 +695,7 @@ certutil -scinfo
 
 其中：
 
-- `Cert 雜湊(sha1)` 就是之後要填進 `pycert.ps1` 的 `$thumbprint`
+- `Cert 雜湊(sha1)` 就是之後要填進 `sign_files.ps1` 的 `$thumbprint`
 
 若覺得 `certutil -scinfo` 輸出太長，不好直接找，可用下面這條指令直接抓出第一張簽章憑證的 `Cert 雜湊(sha1)`：
 
@@ -703,25 +703,25 @@ certutil -scinfo
 (certutil -scinfo | Select-String 'Cert 雜湊\(sha1\)' | Select-Object -First 1).ToString().Split(':')[-1].Trim()
 ```
 
-正常情況下會直接輸出可填入 `pycert.ps1` 的值，例如：
+正常情況下會直接輸出可填入 `sign_files.ps1` 的值，例如：
 
 ```text
 63dc665f1795f66146cf1096d956fd797060af24
 ```
 
-接著再填回 `pycert.ps1`：
+接著再填回 `sign_files.ps1`：
 
 ```powershell
 $thumbprint = '63dc665f1795f66146cf1096d956fd797060af24'
 ```
 
-`pycert.ps1` 的 `$fileDigestAlgorithm` 仍應以 `SignTool` 實測可成功的結果為準，不能只因為憑證本身顯示 `sha256RSA`，就直接假設 `/fd SHA256` 一定可用。
+`sign_files.ps1` 的 `$fileDigestAlgorithm` 仍應以 `SignTool` 實測可成功的結果為準，不能只因為憑證本身顯示 `sha256RSA`，就直接假設 `/fd SHA256` 一定可用。
 
 ### 對這個專案的實際意義
 
-- [pycert.ps1](pycert.ps1) 目前是以 `/sha1 63dc665f1795f66146cf1096d956fd797060af24` 指定 Windows 憑證存放區中的簽章憑證。
+- [sign_files.ps1](sign_files.ps1) 目前是以 `/sha1 63dc665f1795f66146cf1096d956fd797060af24` 指定 Windows 憑證存放區中的簽章憑證。
 - 這表示它依賴的是「當時那台電腦上可被 `SignTool` 使用的憑證」，不是單靠檔案就能完成。
-- 若未來更換電腦、換卡、重發憑證、更新卡片中介軟體，或憑證指紋改變，就必須同步更新 `pycert.ps1`。
+- 若未來更換電腦、換卡、重發憑證、更新卡片中介軟體，或憑證指紋改變，就必須同步更新 `sign_files.ps1`。
 - 若未來發現自然人憑證在某台機器上能做文件簽章，但 `signtool.exe` 仍無法對這三個發佈檔案加簽，優先懷疑的是：
   - 憑證沒有符合 `Code Signing` 用途
   - 憑證雖存在，但 `SignTool` 無法透過 CSP / KSP 存取私鑰
@@ -739,8 +739,8 @@ $thumbprint = '63dc665f1795f66146cf1096d956fd797060af24'
 ### SignTool 準備建議
 
 - 若電腦尚未安裝 `signtool.exe`，建議透過 Windows SDK 取得，不需把 `SignTool` 整包放進本專案。
-- 實際安裝後，`signtool.exe` 常見位置會落在 Windows SDK 的 `bin` 目錄下；若與 [pycert.ps1](pycert.ps1) 目前寫死的路徑不同，請依實際環境調整腳本。
-- 若未來要在其他電腦交接簽章流程，建議 README 保留下載來源、安裝方式與 `pycert.ps1` 修改位置說明即可。
+- 實際安裝後，`signtool.exe` 常見位置會落在 Windows SDK 的 `bin` 目錄下；若與 [sign_files.ps1](sign_files.ps1) 目前寫死的路徑不同，請依實際環境調整腳本。
+- 若未來要在其他電腦交接簽章流程，建議 README 保留下載來源、安裝方式與 `sign_files.ps1` 修改位置說明即可。
 
 ### 建議流程
 
@@ -767,6 +767,6 @@ $thumbprint = '63dc665f1795f66146cf1096d956fd797060af24'
 ## 維護提醒
 
 - 處理 UTF-8 檔案時，不要使用 PowerShell 文字管線，以免繁體中文毀損。
-- 若調整安裝流程，請同步檢查 `make_exec.cmd`、`menu.cmd`、`build_installer.ps1`、`installer_template.iss` 與 `pycert.ps1` 是否仍相容。
+- 若調整安裝流程，請同步檢查 `make_exec.cmd`、`menu.cmd`、`build_setup.ps1`、`installer_template.iss` 與 `sign_files.ps1` 是否仍相容。
 - 若未來要再調整程式內更新流程，請先確認 GUI 文案、`run_update()`、`make_exec.cmd`、`menu.cmd`、`make_sign_app.cmd`、`make_setup.cmd`、`make_sign_setup.cmd` 與 `data\update.cmd` 是否整體一致。
 - 若修改 GitHub Release 相關流程，請同步確認 `make_github_release.cmd`、README 的 Release 範本與實際輸出檔名是否一致。

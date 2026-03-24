@@ -26,22 +26,22 @@
 
 - Stage 2 app signing: `make_sign_app.cmd`
 - 第 2 階段：`make_sign_app.cmd`
-- Purpose: sign `out\chklink.dist\chklink.exe` and `out\chklink_cli.exe` through [pycert.ps1](pycert.ps1) with `-Target app`
-- 作用：透過 [pycert.ps1](pycert.ps1) 搭配 `-Target app` 對 `out\chklink.dist\chklink.exe` 與 `out\chklink_cli.exe` 加簽
+- Purpose: sign `out\chklink.dist\chklink.exe` and `out\chklink_cli.exe` through [sign_files.ps1](sign_files.ps1) with `-Target app`
+- 作用：透過 [sign_files.ps1](sign_files.ps1) 搭配 `-Target app` 對 `out\chklink.dist\chklink.exe` 與 `out\chklink_cli.exe` 加簽
 
 - Stage 3 setup packaging: `make_setup.cmd`
 - 第 3 階段：`make_setup.cmd`
-- Purpose: build `installer\<version>\chklink_setup.exe` through [build_installer.ps1](build_installer.ps1) and [installer_template.iss](installer_template.iss)
-- 作用：透過 [build_installer.ps1](build_installer.ps1) 與 [installer_template.iss](installer_template.iss) 產生 `installer\<版本>\chklink_setup.exe`
+- Purpose: build `installer\<version>\chklink_setup.exe` through [build_setup.ps1](build_setup.ps1) and [installer_template.iss](installer_template.iss)
+- 作用：透過 [build_setup.ps1](build_setup.ps1) 與 [installer_template.iss](installer_template.iss) 產生 `installer\<版本>\chklink_setup.exe`
 - `installer_template.iss` should stay as a stable template.
 - [installer_template.iss](installer_template.iss) 應保持為穩定模板。
-- `build_installer.ps1` generates `installer\build.iss` and passes that generated file to Inno Setup.
-- [build_installer.ps1](build_installer.ps1) 會產生 `installer\build.iss`，再把這份生成檔交給 Inno Setup 編譯。
+- `build_setup.ps1` generates `installer\build.iss` and passes that generated file to Inno Setup.
+- [build_setup.ps1](build_setup.ps1) 會產生 `installer\build.iss`，再把這份生成檔交給 Inno Setup 編譯。
 
 - Stage 4 setup signing: `make_sign_setup.cmd`
 - 第 4 階段：`make_sign_setup.cmd`
-- Purpose: sign `installer\<version>\chklink_setup.exe` through [pycert.ps1](pycert.ps1) with `-Target setup`
-- 作用：透過 [pycert.ps1](pycert.ps1) 搭配 `-Target setup` 對 `installer\<版本>\chklink_setup.exe` 加簽
+- Purpose: sign `installer\<version>\chklink_setup.exe` through [sign_files.ps1](sign_files.ps1) with `-Target setup`
+- 作用：透過 [sign_files.ps1](sign_files.ps1) 搭配 `-Target setup` 對 `installer\<版本>\chklink_setup.exe` 加簽
 - `installer\<version>\chklink_setup.exe`
 
 - Optional checksum step: `make_sha256.cmd`
@@ -99,12 +99,12 @@
 - 共用掃描核心與 Excel 報表輸出： [chklink_core.py](chklink_core.py)
 - Config defaults and parsing: [chklink_config.py](chklink_config.py)
 - 設定預設值與解析： [chklink_config.py](chklink_config.py)
-- Installer generation: [build_installer.ps1](build_installer.ps1)
-- Installer 產生流程： [build_installer.ps1](build_installer.ps1)
+- Installer generation: [build_setup.ps1](build_setup.ps1)
+- Installer 產生流程： [build_setup.ps1](build_setup.ps1)
 - Inno Setup template: [installer_template.iss](installer_template.iss)
 - Inno Setup 範本： [installer_template.iss](installer_template.iss)
-- Signing flow: [pycert.ps1](pycert.ps1)
-- 簽章流程： [pycert.ps1](pycert.ps1)
+- Signing flow: [sign_files.ps1](sign_files.ps1)
+- 簽章流程： [sign_files.ps1](sign_files.ps1)
 
 ## Important project decisions / 重要設計決策
 
@@ -187,8 +187,8 @@
 - 不要提交 `data\config.yaml` 或 `data\visited_link.yaml`。
 - Do not commit real cookies, Authorization headers, tokens, passwords, or private release credentials.
 - 不要提交真實 cookie、Authorization header、token、密碼或私有發佈憑證資訊。
-- Be cautious with `pycert.ps1`; the thumbprint may be environment-specific and should not silently become a portable secret/config dependency.
-- 請特別注意 [pycert.ps1](pycert.ps1)；其中的 thumbprint 具有環境相依性，不應默默演變成可攜式祕密或必要設定。
+- Be cautious with `sign_files.ps1`; the thumbprint may be environment-specific and should not silently become a portable secret/config dependency.
+- 請特別注意 [sign_files.ps1](sign_files.ps1)；其中的 thumbprint 具有環境相依性，不應默默演變成可攜式祕密或必要設定。
 
 ## Testing instructions / 測試方式
 
@@ -206,9 +206,9 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - [make_sign_setup.cmd](make_sign_setup.cmd)
 - [make_sha256.cmd](make_sha256.cmd)
 - [make_github_release.cmd](make_github_release.cmd)
-- [build_installer.ps1](build_installer.ps1)
+- [build_setup.ps1](build_setup.ps1)
 - [installer_template.iss](installer_template.iss)
-- [pycert.ps1](pycert.ps1)
+- [sign_files.ps1](sign_files.ps1)
 
 ## Validation checklist / 驗證清單
 
@@ -261,7 +261,7 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - 改 GUI 掃描流程或 log 行為：先看 [chklink.py](chklink.py)
 - Change CLI flow: start with [chklink_cli.py](chklink_cli.py)
 - 改 CLI 流程：先看 [chklink_cli.py](chklink_cli.py)
-- Change installer output or packaging: start with [build_installer.ps1](build_installer.ps1) and [installer_template.iss](installer_template.iss)
-- 改 installer 輸出或封裝：先看 [build_installer.ps1](build_installer.ps1) 與 [installer_template.iss](installer_template.iss)
-- Change signing flow: start with [make_sign_app.cmd](make_sign_app.cmd), [make_sign_setup.cmd](make_sign_setup.cmd), and [pycert.ps1](pycert.ps1)
-- 改簽章流程：先看 [make_sign_app.cmd](make_sign_app.cmd)、[make_sign_setup.cmd](make_sign_setup.cmd) 與 [pycert.ps1](pycert.ps1)
+- Change installer output or packaging: start with [build_setup.ps1](build_setup.ps1) and [installer_template.iss](installer_template.iss)
+- 改 installer 輸出或封裝：先看 [build_setup.ps1](build_setup.ps1) 與 [installer_template.iss](installer_template.iss)
+- Change signing flow: start with [make_sign_app.cmd](make_sign_app.cmd), [make_sign_setup.cmd](make_sign_setup.cmd), and [sign_files.ps1](sign_files.ps1)
+- 改簽章流程：先看 [make_sign_app.cmd](make_sign_app.cmd)、[make_sign_setup.cmd](make_sign_setup.cmd) 與 [sign_files.ps1](sign_files.ps1)

@@ -55,7 +55,7 @@ switch ($Target) {
 }
 
 if (-not (Test-Path -LiteralPath $signToolPath)) {
-    Write-Host '[ERROR] signtool.exe was not found. Install Windows SDK or update $signToolPath in pycert.ps1.' -ForegroundColor Red
+    Write-Host '[ERROR] signtool.exe was not found. Install Windows SDK or update $signToolPath in sign_files.ps1.' -ForegroundColor Red
     exit 1
 }
 
