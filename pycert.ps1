@@ -1,8 +1,9 @@
-$ErrorActionPreference = 'Stop'
 param(
     [ValidateSet('app', 'setup', 'all')]
     [string]$Target = 'all'
 )
+
+$ErrorActionPreference = 'Stop'
 
 $signToolPath = '..\SignTool\x64\signtool.exe'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
