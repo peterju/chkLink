@@ -13,6 +13,15 @@
 - 想改版本、編譯、打包與更新：看「版本號來源」與「正式發佈與升級流程」
 - 想公開 repo 或交接維護：看「公開 Repo 前的注意事項」、「已知限制」與根目錄 [AGENTS.md](AGENTS.md)
 
+## 先看這裡
+
+如果你是第一次接手這個專案，建議先掌握下面 4 件事：
+
+1. 主產品是 GUI，CLI 是低曝光輔助入口。
+2. 掃描核心共用在 [chklink_core.py](chklink_core.py)，不要分別在 GUI / CLI 內重複改邏輯。
+3. 執行中的版本號唯一來源是 [chklink_config.py](chklink_config.py) 的 `DEFAULT_APP_VERSION`。
+4. 校內更新來源與 GitHub Release 是兩條分開的發佈線，不要把 `make_github_release.cmd` 產物誤當成 GUI 預設更新來源。
+
 ## 專案用途
 
 - 掃描網站中的內部連結是否可正常開啟
@@ -48,7 +57,7 @@
 - `make_sign_setup.cmd`：第 4 階段，對 installer 加簽
 - `make_sha256.cmd`：可選步驟，為 installer 與 `RemoteVersion.yaml` 產生 `SHA256.txt`
 - `make_github_release.cmd`：整理 GitHub Release 用的版本化檔名與 SHA256 資產
-- `make.cmd`：提供 `1 / 2 / 3 / 4 / 5 / 6` 的互動式建置選單
+- `menu.cmd`：提供 `1 / 2 / 3 / 4 / 5 / 6` 的互動式建置選單
 - `build_installer.ps1`：由 `make_setup.cmd` 呼叫，用來產生 Inno Setup 安裝程式
 - `installer_template.iss`：Inno Setup 穩定模板
 - `data\update.cmd`：啟動新版安裝程式用的批次檔
@@ -65,6 +74,16 @@
 - 打包與發佈維護者：
   - 先看「正式發佈與升級流程」
   - 再看 [build_installer.ps1](build_installer.ps1)、[installer_template.iss](installer_template.iss)、[pycert.ps1](pycert.ps1)
+
+## 角色與真相來源
+
+- GUI 是主要入口，負責一般使用者操作、更新檢查、掃描與報表。
+- CLI 共用同一套掃描核心，但主要用途是排程、自動化與除錯。
+- 掃描邏輯真相來源在 [chklink_core.py](chklink_core.py)。
+- 版本號真相來源在 [chklink_config.py](chklink_config.py) 的 `DEFAULT_APP_VERSION`。
+- 校內更新版本檔真相來源是 `installer\<版本>\RemoteVersion.yaml`。
+- 使用者執行期資料是 `data\config.yaml` 與 `data\visited_link.yaml`。
+- `data\update.cmd` 是程式持有的更新輔助檔，不是使用者設定檔。
 
 ## 執行方式
 
@@ -400,8 +419,19 @@ Inno Setup 語系檔安裝方式如下：
 3. `make_setup.cmd`：建立 installer
 4. `make_sign_setup.cmd`：最後對 installer 加簽
 5. `make_sha256.cmd`：可選，產生 `SHA256.txt`
-6. `make.cmd`：提供 `1 / 2 / 3 / 4 / 5 / 6` 的互動式選單入口
+6. `menu.cmd`：提供 `1 / 2 / 3 / 4 / 5 / 6` 的互動式選單入口
 7. `make_github_release.cmd`：可選，整理 GitHub Release 資產
+
+### `menu.cmd` 選單與實際腳本的對應
+
+- `menu.cmd` 只是手動選單入口，不是實際的編譯腳本。
+- 選單 `1` 對應 `make_exec.cmd`
+- 選單 `2` 對應 `make_sign_app.cmd`
+- 選單 `3` 對應 `make_setup.cmd`
+- 選單 `4` 對應 `make_sign_setup.cmd`
+- 選單 `5` 對應 `make_sha256.cmd`
+- 選單 `6` 對應 `make_github_release.cmd`
+- 若要改建置流程，應優先改對應腳本本身，再同步確認 `menu.cmd` 是否仍一致。
 
 ### 上傳到下載伺服器的檔案
 
@@ -421,6 +451,19 @@ Inno Setup 語系檔安裝方式如下：
 - `release\<版本>\chklink-<version>-SHA256.txt`
 
 這個步驟只負責整理對外公開發佈檔名，不會改動 GUI 預設更新來源；GUI 預設仍建議指向校內發佈站。
+
+### 校內更新與 GitHub Release 的分工
+
+- 校內更新線：
+  - 主要給 GUI「檢查更新」使用
+  - 使用 `installer\<版本>\chklink_setup.exe`
+  - 使用 `installer\<版本>\RemoteVersion.yaml`
+- GitHub Release 線：
+  - 主要給對外公開下載與版本展示使用
+  - 使用 `release\<版本>\chklink-<version>-win-x64-setup.exe`
+  - 使用 `release\<版本>\chklink-<version>-RemoteVersion.yaml`
+  - 使用 `release\<版本>\chklink-<version>-SHA256.txt`
+- 這兩條線目前共用同一套程式本體，但下載檔名與使用目的不同。
 
 若你要部署到自己的伺服器，請同時確認：
 
@@ -699,5 +742,6 @@ $thumbprint = '63dc665f1795f66146cf1096d956fd797060af24'
 ## 維護提醒
 
 - 處理 UTF-8 檔案時，不要使用 PowerShell 文字管線，以免繁體中文毀損。
-- 若調整安裝流程，請同步檢查 `make_exec.cmd`、`make.cmd`、`build_installer.ps1`、`installer_template.iss` 與 `pycert.ps1` 是否仍相容。
-- 若未來要再調整程式內更新流程，請先確認 GUI 文案、`run_update()`、`make_exec.cmd`、`make.cmd`、`make_sign_app.cmd`、`make_setup.cmd`、`make_sign_setup.cmd` 與 `data\update.cmd` 是否整體一致。
+- 若調整安裝流程，請同步檢查 `make_exec.cmd`、`menu.cmd`、`build_installer.ps1`、`installer_template.iss` 與 `pycert.ps1` 是否仍相容。
+- 若未來要再調整程式內更新流程，請先確認 GUI 文案、`run_update()`、`make_exec.cmd`、`menu.cmd`、`make_sign_app.cmd`、`make_setup.cmd`、`make_sign_setup.cmd` 與 `data\update.cmd` 是否整體一致。
+- 若修改 GitHub Release 相關流程，請同步確認 `make_github_release.cmd`、README 的 Release 範本與實際輸出檔名是否一致。

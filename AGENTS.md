@@ -54,8 +54,8 @@
 - Purpose: prepare versioned public-release assets under `release\<version>\`
 - 作用：在 `release\<版本>\` 下整理對外公開發佈用的版本化資產
 
-- Interactive menu: `make.cmd`
-- 互動式選單：`make.cmd`
+- Interactive menu: `menu.cmd`
+- 互動式選單：`menu.cmd`
 - Purpose: present steps `1 / 2 / 3 / 4 / 5 / 6` for manual release operations
 - 作用：提供 `1 / 2 / 3 / 4 / 5 / 6` 的選單入口，方便依序手動執行建置流程
 
@@ -63,8 +63,10 @@
 
 - Recommended order: `make_exec.cmd -> make_sign_app.cmd -> make_setup.cmd -> make_sign_setup.cmd`
 - 建議順序：`make_exec.cmd -> make_sign_app.cmd -> make_setup.cmd -> make_sign_setup.cmd`
-- `make.cmd` is only a menu wrapper. It is not the actual compile step.
-- `make.cmd` 只是選單入口，不是實際的編譯步驟。
+- `menu.cmd` is only a menu wrapper. It is not the actual compile step.
+- `menu.cmd` 只是選單入口，不是實際的編譯步驟。
+- `make_github_release.cmd` is also optional and should run only after installer assets already exist.
+- `make_github_release.cmd` 也是可選步驟，而且應在 installer 相關資產都已完成後再執行。
 - Upload order matters: upload `chklink_setup.exe` first, then update `RemoteVersion.yaml`.
 - 上傳順序很重要：先上傳 `chklink_setup.exe`，再更新 `RemoteVersion.yaml`。
 - GitHub Release preparation is separate from the in-app update source.
@@ -138,12 +140,16 @@
 - 執行中的程式版本： [chklink_config.py](chklink_config.py) 的 `DEFAULT_APP_VERSION`
 - Remote update version file: `installer\<version>\RemoteVersion.yaml`
 - 遠端更新版本檔：`installer\<版本>\RemoteVersion.yaml`
+- Public GitHub Release assets: `release\<version>\chklink-<version>-win-x64-setup.exe`, `release\<version>\chklink-<version>-RemoteVersion.yaml`, `release\<version>\chklink-<version>-SHA256.txt`
+- 對外 GitHub Release 資產：`release\<版本>\chklink-<version>-win-x64-setup.exe`、`release\<版本>\chklink-<version>-RemoteVersion.yaml`、`release\<版本>\chklink-<version>-SHA256.txt`
 - User-owned runtime files: `data\config.yaml`, `data\visited_link.yaml`
 - 使用者持有的執行期檔案：`data\config.yaml`、`data\visited_link.yaml`
 - App-owned runtime helper: `data\update.cmd`
 - 程式持有的執行期輔助檔：`data\update.cmd`
 - Do not reintroduce `data\LocalVersion.yaml` as a version source.
 - 不要再把 `data\LocalVersion.yaml` 帶回版本真相來源。
+- Do not treat `release\<version>\...` assets as the default in-app update source unless the user explicitly asks to switch to GitHub-hosted updates.
+- 除非使用者明確要求改成 GitHub 更新來源，否則不要把 `release\<版本>\...` 資產當成 GUI 預設更新來源。
 
 ## Scan behavior summary / 掃描行為摘要
 
@@ -190,7 +196,7 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - If you change build or installer flow, re-check:
 - 若調整建置或 installer 流程，請重新檢查：
 - [make_exec.cmd](make_exec.cmd)
-- [make.cmd](make.cmd)
+- [menu.cmd](menu.cmd)
 - [make_sign_app.cmd](make_sign_app.cmd)
 - [make_setup.cmd](make_setup.cmd)
 - [make_sign_setup.cmd](make_sign_setup.cmd)
@@ -208,6 +214,8 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - 若修改更新流程，請檢查 GUI 版本顯示、遠端版本比較，以及 `data\update.cmd` 啟動 installer 的行為。
 - If you change build/release flow, verify script names, output paths, installer contents, and README/AGENTS consistency.
 - 若修改建置或發佈流程，請檢查腳本名稱、輸出路徑、installer 內容，以及 README / AGENTS 是否一致。
+- If you change GitHub Release packaging, verify both `installer\<version>\` and `release\<version>\` outputs and confirm naming still matches README.
+- 若修改 GitHub Release 整理流程，請同時檢查 `installer\<版本>\` 與 `release\<版本>\` 的輸出，並確認檔名仍與 README 一致。
 - If you touch `.cmd` files, preserve cp950 encoding and CRLF line endings.
 - 若修改 `.cmd` 檔，請維持 cp950 編碼與 CRLF 換行。
 
@@ -217,8 +225,10 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - PowerShell 文字管線在重寫檔案時可能破壞繁體中文內容。
 - `.cmd` files are not UTF-8 in this repo.
 - 本專案的 `.cmd` 檔不是 UTF-8。
-- `make.cmd` is the menu, while `make_exec.cmd` is the actual compile step.
-- `make.cmd` 是選單，`make_exec.cmd` 才是實際編譯步驟。
+- `menu.cmd` is the menu, while `make_exec.cmd` is the actual compile step.
+- `menu.cmd` 是選單，`make_exec.cmd` 才是實際編譯步驟。
+- `make_github_release.cmd` copies assets from `installer\<version>\` into `release\<version>\`; it does not rename or replace the installer-side files.
+- `make_github_release.cmd` 會把 `installer\<版本>\` 的資產複製整理到 `release\<版本>\`，不會直接改名或覆蓋 installer 那邊的原檔。
 - Uploading `RemoteVersion.yaml` too early can expose a new version before the installer is reachable.
 - 若過早上傳 `RemoteVersion.yaml`，會在 installer 尚未可下載時提前暴露新版本。
 
