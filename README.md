@@ -524,6 +524,20 @@ Inno Setup 語系檔安裝方式如下：
 
 建議在每次正式發版時，把上面的版本號、重點摘要與檔名同步改成當次版本。
 
+### winget 草稿檔
+
+專案根目錄的 `winget\` 目前放的是提交 Windows Package Manager（winget）前的草稿檔，主要用途是整理：
+
+- `PackageIdentifier`
+- `Publisher`
+- `PackageVersion`
+- `InstallerUrl`
+- `InstallerSha256`
+- Inno Setup 的 silent install 參數
+
+目前這些檔案可作為後續提交 `microsoft/winget-pkgs` 前的準備材料，但不代表已經完成官方驗證或正式提交。
+若後續版本號、Release URL、SHA256、Publisher 或安裝行為變動，請同步更新 `winget\` 內對應版本的 manifest 草稿。
+
 ### 公開 Repo 前的注意事項
 
 - 不要把真實的 `Cookie`、token、Authorization header、帳密、或其它登入態資料放進 `config.yaml-default`、`chklink_config.py` 或 README。
