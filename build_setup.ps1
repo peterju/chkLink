@@ -5,7 +5,7 @@ $configPath = Join-Path $projectRoot 'chklink_config.py'
 $issTemplatePath = Join-Path $projectRoot 'installer_template.iss'
 $distDir = Join-Path $projectRoot 'out\chklink.dist'
 $cliExePath = Join-Path $projectRoot 'out\chklink_cli.exe'
-$updateCmdPath = Join-Path $projectRoot 'data\update.cmd'
+$updateCmdPath = Join-Path $projectRoot 'update.cmd'
 $iconPath = Join-Path $projectRoot 'chklink.ico'
 $installerRootDir = Join-Path $projectRoot 'installer'
 $pythonExe = Join-Path $projectRoot '.venv\Scripts\python.exe'
@@ -34,10 +34,10 @@ if (-not (Test-Path -LiteralPath $cliExePath)) {
 }
 
 if (-not (Test-Path -LiteralPath $updateCmdPath)) {
-    Write-Host '[INFO] data\update.cmd not found. Creating it now...'
+    Write-Host '[INFO] update.cmd not found. Creating it now...'
     & $pythonExe -c "import chklink_config as c; c.ensure_update_cmd()"
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $updateCmdPath)) {
-        Write-Host '[ERROR] data\update.cmd not found.' -ForegroundColor Red
+        Write-Host '[ERROR] update.cmd not found.' -ForegroundColor Red
         exit 1
     }
 }

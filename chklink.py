@@ -341,7 +341,6 @@ def queued_link_check(scan_request: dict) -> list:
     finally:
         if browser is not None:
             browser.quit()  # 關閉瀏覽器
-        core.save_visited_link(visted_link_file, visited_link)  # 儲存已檢查過的連結
         set_scan_controls(False)
         end_time = datetime.now()  # 取得結束時間
         hours, remainder = divmod((end_time - start_time).seconds, 3600)
@@ -354,6 +353,14 @@ def queued_link_check(scan_request: dict) -> list:
             logger.info(msg)
             core.close_logger(logger)
         append_log(msg, "SUCCESS")
+        try:
+            core.save_visited_link(visted_link_file, visited_link)  # 儲存已檢查過的連結
+        except Exception as exc:
+            append_log(f"儲存已檢查過的連結快取失敗：{exc}", "WARNING")
+            show_warning_message(
+                "資訊",
+                f"掃描已完成，但儲存已檢查過的連結快取失敗：{exc}",
+            )
 
     if not scan_completed or stop_scan or scan_interrupted:
         return []

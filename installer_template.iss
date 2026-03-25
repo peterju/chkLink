@@ -34,7 +34,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#MyAppDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 Source: "{#MyAppCliExePath}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyAppUpdateCmd}"; DestDir: "{app}\data"; Flags: ignoreversion
+Source: "{#MyAppUpdateCmd}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autodesktop}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon

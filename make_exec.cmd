@@ -52,13 +52,12 @@ if not defined APP_VERSION (
     exit /b 1
 )
 
-if not exist "data" mkdir "data"
 if not exist "installer" mkdir "installer"
 if not exist "installer\%APP_VERSION%" mkdir "installer\%APP_VERSION%"
 
 "%PYTHON_EXE%" -c "import chklink_config as c; c.ensure_update_cmd(); c.dump_yaml('installer/{}/RemoteVersion.yaml'.format(c.DEFAULT_APP_VERSION), {'version': c.DEFAULT_APP_VERSION})"
 if errorlevel 1 (
-    echo [錯誤] 無法建立 installer\%APP_VERSION%\RemoteVersion.yaml 或 data\update.cmd。
+    echo [錯誤] 無法建立 installer\%APP_VERSION%\RemoteVersion.yaml 或 update.cmd。
     exit /b 1
 )
 

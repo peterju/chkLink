@@ -7,13 +7,17 @@ from ruamel.yaml import YAML
 
 APP_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = "data"
+USER_RUNTIME_BASE_DIR = os.path.join(
+    os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"),
+    "chkLink",
+)
 DEFAULT_TEMPLATE_FILE = "config.yaml-default"
 DEFAULT_CONFIG_FILE = os.path.join(DATA_DIR, "config.yaml")
-DEFAULT_UPDATE_CMD_FILE = os.path.join(DATA_DIR, "update.cmd")
+DEFAULT_UPDATE_CMD_FILE = "update.cmd"
 DEFAULT_VISITED_LINK_FILE = os.path.join(DATA_DIR, "visited_link.yaml")
-DEFAULT_CONFIG_PATH = os.path.join(APP_BASE_DIR, DEFAULT_CONFIG_FILE)
+DEFAULT_CONFIG_PATH = os.path.join(USER_RUNTIME_BASE_DIR, DEFAULT_CONFIG_FILE)
 DEFAULT_UPDATE_CMD_PATH = os.path.join(APP_BASE_DIR, DEFAULT_UPDATE_CMD_FILE)
-DEFAULT_VISITED_LINK_PATH = os.path.join(APP_BASE_DIR, DEFAULT_VISITED_LINK_FILE)
+DEFAULT_VISITED_LINK_PATH = os.path.join(USER_RUNTIME_BASE_DIR, DEFAULT_VISITED_LINK_FILE)
 DEFAULT_RELEASE_BASE_URL = "https://cc.ncut.edu.tw/var/file/32/1032/img/1517/"
 DEFAULT_REMOTE_VERSION_FILE = "RemoteVersion.yaml"
 DEFAULT_SETUP_FILE = "chklink_setup.exe"
@@ -117,13 +121,13 @@ DEFAULT_REQUEST_CONTROL = {
 
 LEGACY_RUNTIME_FILES = {
     "config.yaml": DEFAULT_CONFIG_FILE,
-    "update.cmd": DEFAULT_UPDATE_CMD_FILE,
     "visited_link.yaml": DEFAULT_VISITED_LINK_FILE,
 }
-APP_OWNED_RUNTIME_FILES = {"update.cmd"}
+USER_OWNED_RUNTIME_FILES = {"config.yaml", "visited_link.yaml"}
 OBSOLETE_RUNTIME_FILES = [
     "LocalVersion.yaml",
     os.path.join(DATA_DIR, "LocalVersion.yaml"),
+    os.path.join(DATA_DIR, "update.cmd"),
 ]
 
 
@@ -145,8 +149,8 @@ def dump_yaml(path: str, data: dict) -> None:
         yaml.dump(data, file)
 
 
-def ensure_data_dir(base_dir: str = APP_BASE_DIR) -> str:
-    """確保 data 目錄存在並回傳完整路徑。"""
+def ensure_data_dir(base_dir: str = USER_RUNTIME_BASE_DIR) -> str:
+    """確保指定 base_dir 下的 data 目錄存在並回傳完整路徑。"""
     data_dir = os.path.join(base_dir, DATA_DIR)
     os.makedirs(data_dir, exist_ok=True)
     return data_dir
@@ -158,26 +162,57 @@ def runtime_path(relative_path: str, base_dir: str = APP_BASE_DIR) -> str:
 
 
 def migrate_legacy_runtime_files(base_dir: str = APP_BASE_DIR) -> None:
-    """將舊版放在根目錄的執行期檔案搬到 data 目錄。"""
-    ensure_data_dir(base_dir)
+    """整理舊版執行期檔案位置，將使用者資料搬到可寫目錄。"""
+    ensure_data_dir(USER_RUNTIME_BASE_DIR)
     for old_name, new_relative_path in LEGACY_RUNTIME_FILES.items():
         old_path = os.path.join(base_dir, old_name)
-        new_path = runtime_path(new_relative_path, base_dir)
+        new_path = runtime_path(new_relative_path, USER_RUNTIME_BASE_DIR)
         if not os.path.exists(old_path):
             continue
 
         if not os.path.exists(new_path):
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            shutil.move(old_path, new_path)
+            shutil.copy2(old_path, new_path)
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
             continue
 
-        if old_name in APP_OWNED_RUNTIME_FILES:
+        try:
             os.remove(old_path)
+        except OSError:
+            pass
+
+    # 舊版安裝於 Program Files 時，使用者設定與快取可能仍留在安裝目錄\data
+    for runtime_name in USER_OWNED_RUNTIME_FILES:
+        install_data_path = runtime_path(os.path.join(DATA_DIR, runtime_name), base_dir)
+        user_data_path = runtime_path(os.path.join(DATA_DIR, runtime_name), USER_RUNTIME_BASE_DIR)
+
+        if not os.path.exists(install_data_path):
+            continue
+
+        if not os.path.exists(user_data_path):
+            os.makedirs(os.path.dirname(user_data_path), exist_ok=True)
+            shutil.copy2(install_data_path, user_data_path)
+            try:
+                os.remove(install_data_path)
+            except OSError:
+                pass
+            continue
+
+        try:
+            os.remove(install_data_path)
+        except OSError:
+            pass
 
     for obsolete_relative_path in OBSOLETE_RUNTIME_FILES:
         obsolete_path = runtime_path(obsolete_relative_path, base_dir)
         if os.path.exists(obsolete_path):
-            os.remove(obsolete_path)
+            try:
+                os.remove(obsolete_path)
+            except OSError:
+                pass
 
 
 def default_setting() -> dict:
@@ -220,8 +255,8 @@ def default_setting() -> dict:
     }
 
 
-def ensure_update_cmd(update_file: str = DEFAULT_UPDATE_CMD_FILE) -> None:
-    """確保 data/update.cmd 存在；若不存在則建立預設內容。"""
+def ensure_update_cmd(update_file: str = DEFAULT_UPDATE_CMD_PATH) -> None:
+    """確保安裝根目錄的 update.cmd 存在；若不存在則建立預設內容。"""
     if os.path.exists(update_file):
         return
 

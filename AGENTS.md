@@ -17,8 +17,8 @@
 
 - Stage 1 build: `make_exec.cmd`
 - 第 1 階段：`make_exec.cmd`
-- Purpose: compile GUI and CLI, ensure `data\update.cmd`, and write `installer\<version>\RemoteVersion.yaml`
-- 作用：編譯 GUI 與 CLI，確保 `data\update.cmd` 存在，並產生 `installer\<版本>\RemoteVersion.yaml`
+- Purpose: compile GUI and CLI, ensure `update.cmd`, and write `installer\<version>\RemoteVersion.yaml`
+- 作用：編譯 GUI 與 CLI，確保 `update.cmd` 存在，並產生 `installer\<版本>\RemoteVersion.yaml`
 - GUI output: `out\chklink.dist\chklink.exe`
 - GUI 輸出：`out\chklink.dist\chklink.exe`
 - CLI output: `out\chklink_cli.exe`
@@ -116,8 +116,8 @@
 - Installer 會同時安裝 GUI 與 CLI，但只為 GUI 建立捷徑。
 - Installer output is versioned under `installer\<version>\`.
 - Installer 輸出固定放在 `installer\<版本>\`。
-- The installer must not include `data\config.yaml` or `data\visited_link.yaml`, to avoid overwriting user settings and cache on upgrade.
-- Installer 不可打包 `data\config.yaml` 與 `data\visited_link.yaml`，以免升級時覆蓋使用者設定與快取。
+- The installer must not include user-owned `config.yaml` or `visited_link.yaml`, to avoid overwriting user settings and cache on upgrade.
+- Installer 不可打包使用者持有的 `config.yaml` 與 `visited_link.yaml`，以免升級時覆蓋使用者設定與快取。
 - The running app version must come from `DEFAULT_APP_VERSION`, not from `data\LocalVersion.yaml`.
 - 執行中的程式版本必須以 `DEFAULT_APP_VERSION` 為準，不再依賴 `data\LocalVersion.yaml`。
 - Auto-update is installer-based, not single-exe replacement based.
@@ -146,10 +146,10 @@
 - 遠端更新版本檔：`installer\<版本>\RemoteVersion.yaml`
 - Public GitHub Release assets: `release\<version>\chklink-<version>-win-x64-setup.exe`, `release\<version>\chklink-<version>-RemoteVersion.yaml`, `release\<version>\chklink-<version>-SHA256.txt`
 - 對外 GitHub Release 資產：`release\<版本>\chklink-<version>-win-x64-setup.exe`、`release\<版本>\chklink-<version>-RemoteVersion.yaml`、`release\<版本>\chklink-<version>-SHA256.txt`
-- User-owned runtime files: `data\config.yaml`, `data\visited_link.yaml`
-- 使用者持有的執行期檔案：`data\config.yaml`、`data\visited_link.yaml`
-- App-owned runtime helper: `data\update.cmd`
-- 程式持有的執行期輔助檔：`data\update.cmd`
+- User-owned runtime files: `%LOCALAPPDATA%\chkLink\data\config.yaml`, `%LOCALAPPDATA%\chkLink\data\visited_link.yaml`
+- 使用者持有的執行期檔案：`%LOCALAPPDATA%\chkLink\data\config.yaml`、`%LOCALAPPDATA%\chkLink\data\visited_link.yaml`
+- App-owned runtime helper: `update.cmd`
+- 程式持有的執行期輔助檔：`update.cmd`
 - Do not reintroduce `data\LocalVersion.yaml` as a version source.
 - 不要再把 `data\LocalVersion.yaml` 帶回版本真相來源。
 - Do not treat `release\<version>\...` assets as the default in-app update source unless the user explicitly asks to switch to GitHub-hosted updates.
@@ -170,21 +170,25 @@
 
 ## Config and migration notes / 設定與遷移說明
 
-- Runtime config file: `data\config.yaml`
-- 執行期設定檔：`data\config.yaml`
+- Runtime config file: `%LOCALAPPDATA%\chkLink\data\config.yaml`
+- 執行期設定檔：`%LOCALAPPDATA%\chkLink\data\config.yaml`
 - Default config template: [config.yaml-default](config.yaml-default)
 - 預設設定樣板： [config.yaml-default](config.yaml-default)
 - Missing config keys are filled by `normalize_setting()` in [chklink_config.py](chklink_config.py)
 - 缺少的設定欄位會由 [chklink_config.py](chklink_config.py) 的 `normalize_setting()` 自動補齊。
 - Existing users should receive new config keys on next app launch.
 - 舊使用者在下次啟動程式時，應自動取得新增的設定欄位。
+- User-owned runtime files must stay in a writable per-user location, not under `Program Files`.
+- 使用者持有的執行期檔案必須放在每位使用者可寫的位置，不可再寫回 `Program Files`。
+- `update.cmd` remains under the install directory root because it is app-owned and used by the in-app updater.
+- `update.cmd` 仍保留在安裝目錄根目錄，因為它是程式持有的更新輔助檔。
 - Default headers must not contain real cookies, tokens, or authenticated session data.
 - 預設 headers 不可包含真實 cookie、token 或已登入的 session 資料。
 
 ## Do Not Commit / 不可提交項目
 
-- Do not commit `data\config.yaml` or `data\visited_link.yaml`.
-- 不要提交 `data\config.yaml` 或 `data\visited_link.yaml`。
+- Do not commit `%LOCALAPPDATA%\chkLink\data\config.yaml` or `%LOCALAPPDATA%\chkLink\data\visited_link.yaml`.
+- 不要提交 `%LOCALAPPDATA%\chkLink\data\config.yaml` 或 `%LOCALAPPDATA%\chkLink\data\visited_link.yaml`。
 - Do not commit real cookies, Authorization headers, tokens, passwords, or private release credentials.
 - 不要提交真實 cookie、Authorization header、token、密碼或私有發佈憑證資訊。
 - Be cautious with `sign_files.ps1`; the thumbprint may be environment-specific and should not silently become a portable secret/config dependency.
@@ -214,8 +218,8 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 
 - If you change scan logic, run the Python syntax check and verify at least one real scan flow in GUI or CLI.
 - 若修改掃描邏輯，請至少執行 Python 語法檢查，並實際驗證一次 GUI 或 CLI 的掃描流程。
-- If you change update logic, verify GUI version display, remote version comparison, and `data\update.cmd` launch behavior.
-- 若修改更新流程，請檢查 GUI 版本顯示、遠端版本比較，以及 `data\update.cmd` 啟動 installer 的行為。
+- If you change update logic, verify GUI version display, remote version comparison, and `update.cmd` launch behavior.
+- 若修改更新流程，請檢查 GUI 版本顯示、遠端版本比較，以及 `update.cmd` 啟動 installer 的行為。
 - If you change build/release flow, verify script names, output paths, installer contents, and README/AGENTS consistency.
 - 若修改建置或發佈流程，請檢查腳本名稱、輸出路徑、installer 內容，以及 README / AGENTS 是否一致。
 - If you change GitHub Release packaging, verify both `installer\<version>\` and `release\<version>\` outputs and confirm naming still matches README.

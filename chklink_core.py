@@ -149,6 +149,7 @@ def save_visited_link(visited_link_file: str, visited_link: dict) -> None:
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.indent(mapping=2, sequence=4, offset=2)
+    os.makedirs(os.path.dirname(visited_link_file) or ".", exist_ok=True)
     with open(visited_link_file, "w", encoding="utf-8") as file:
         for key, value in visited_link.items():
             if _is_cacheable_status(value):
