@@ -55,8 +55,8 @@
 
 - Optional GitHub Release packaging step: `make_github_release.cmd`
 - 可選 GitHub Release 整理步驟：`make_github_release.cmd`
-- Purpose: prepare versioned public-release assets under `release\<version>\`
-- 作用：在 `release\<版本>\` 下整理對外公開發佈用的版本化資產
+- Purpose: prepare versioned public-release files (assets) under `release\<version>\`
+- 作用：在 `release\<版本>\` 下整理對外公開發佈用的版本化檔案（assets）
 
 - Interactive menu: `menu.cmd`
 - 互動式選單：`menu.cmd`
@@ -69,12 +69,12 @@
 - 建議順序：`make_exec.cmd -> make_sign_app.cmd -> make_setup.cmd -> make_sign_setup.cmd`
 - `menu.cmd` is only a menu wrapper. It is not the actual compile step.
 - `menu.cmd` 只是選單入口，不是實際的編譯步驟。
-- `make_github_release.cmd` is also optional and should run only after installer assets already exist.
-- `make_github_release.cmd` 也是可選步驟，而且應在 installer 相關資產都已完成後再執行。
+- `make_github_release.cmd` is also optional and should run only after installer files (assets) already exist.
+- `make_github_release.cmd` 也是可選步驟，而且應在 installer 相關檔案（assets）都已完成後再執行。
 - Upload order matters: upload `chklink_setup.exe` first, then update `RemoteVersion.yaml`.
 - 上傳順序很重要：先上傳 `chklink_setup.exe`，再更新 `RemoteVersion.yaml`。
 - GitHub Release preparation is separate from the in-app update source.
-- GitHub Release 資產整理應與程式內更新來源分離處理。
+- GitHub Release 檔案整理（assets）應與程式內更新來源分離處理。
 
 ## Dev environment tips / 開發環境注意事項
 
@@ -112,8 +112,8 @@
 
 ## Important project decisions / 重要設計決策
 
-- GUI uses Nuitka `--standalone` because it is more stable for Tk and related runtime assets.
-- GUI 使用 Nuitka `--standalone`，因為對 Tk 與相關執行期資源較穩定。
+- GUI uses Nuitka `--standalone` because it is more stable for Tk and related runtime files/resources.
+- GUI 使用 Nuitka `--standalone`，因為對 Tk 與相關執行期檔案 / 資源較穩定。
 - CLI uses Nuitka `--onefile` because it is more convenient for automation and low-exposure distribution.
 - CLI 使用 Nuitka `--onefile`，因為較適合自動化與低曝光分發。
 - The installer includes both GUI and CLI, but only GUI gets shortcuts.
@@ -148,16 +148,16 @@
 - 執行中的程式版本： [chklink_config.py](chklink_config.py) 的 `DEFAULT_APP_VERSION`
 - Remote update version file: `installer\<version>\RemoteVersion.yaml`
 - 遠端更新版本檔：`installer\<版本>\RemoteVersion.yaml`
-- Public GitHub Release assets: `release\<version>\chklink-<version>-win-x64-setup.exe`, `release\<version>\chklink-<version>-RemoteVersion.yaml`, `release\<version>\chklink-<version>-SHA256.txt`
-- 對外 GitHub Release 資產：`release\<版本>\chklink-<version>-win-x64-setup.exe`、`release\<版本>\chklink-<version>-RemoteVersion.yaml`、`release\<版本>\chklink-<version>-SHA256.txt`
+- Public GitHub Release files (assets): `release\<version>\chklink-<version>-win-x64-setup.exe`, `release\<version>\chklink-<version>-RemoteVersion.yaml`, `release\<version>\chklink-<version>-SHA256.txt`
+- 對外 GitHub Release 檔案（assets）：`release\<版本>\chklink-<version>-win-x64-setup.exe`、`release\<版本>\chklink-<version>-RemoteVersion.yaml`、`release\<版本>\chklink-<version>-SHA256.txt`
 - User-owned runtime files: `%LOCALAPPDATA%\chkLink\data\config.yaml`, `%LOCALAPPDATA%\chkLink\data\visited_link.yaml`
 - 使用者持有的執行期檔案：`%LOCALAPPDATA%\chkLink\data\config.yaml`、`%LOCALAPPDATA%\chkLink\data\visited_link.yaml`
 - App-owned runtime helper: `update.cmd`
 - 程式持有的執行期輔助檔：`update.cmd`
 - Do not reintroduce `data\LocalVersion.yaml` as a version source.
 - 不要再把 `data\LocalVersion.yaml` 帶回版本真相來源。
-- Do not treat `release\<version>\...` assets as the default in-app update source unless the user explicitly asks to switch to GitHub-hosted updates.
-- 除非使用者明確要求改成 GitHub 更新來源，否則不要把 `release\<版本>\...` 資產當成 GUI 預設更新來源。
+- Do not treat `release\<version>\...` files (assets) as the default in-app update source unless the user explicitly asks to switch to GitHub-hosted updates.
+- 除非使用者明確要求改成 GitHub 更新來源，否則不要把 `release\<版本>\...` 檔案（assets）當成 GUI 預設更新來源。
 
 ## Scan behavior summary / 掃描行為摘要
 
@@ -240,7 +240,7 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - `menu.cmd` is the menu, while `make_exec.cmd` is the actual compile step.
 - `menu.cmd` 是選單，`make_exec.cmd` 才是實際編譯步驟。
 - `make_github_release.cmd` copies assets from `installer\<version>\` into `release\<version>\`; it does not rename or replace the installer-side files.
-- `make_github_release.cmd` 會把 `installer\<版本>\` 的資產複製整理到 `release\<版本>\`，不會直接改名或覆蓋 installer 那邊的原檔。
+- `make_github_release.cmd` 會把 `installer\<版本>\` 的檔案（assets）複製整理到 `release\<版本>\`，不會直接改名或覆蓋 installer 那邊的原檔。
 - Uploading `RemoteVersion.yaml` too early can expose a new version before the installer is reachable.
 - 若過早上傳 `RemoteVersion.yaml`，會在 installer 尚未可下載時提前暴露新版本。
 
@@ -250,6 +250,8 @@ python -m py_compile chklink.py chklink_cli.py chklink_config.py chklink_core.py
 - 優先採取小而可回復的修改。
 - Respect existing scan logic unless the user explicitly asks for behavior changes.
 - 除非使用者明確要求改變行為，否則請尊重既有掃描邏輯。
+- After completing a change, review whether README.md, AGENTS.md, and HANDOFF.md need to be updated in the same round.
+- 完成變更後，請回頭檢查 README.md、AGENTS.md、HANDOFF.md 是否需要在同一輪一併更新。
 - Do not silently change file encodings.
 - 不要默默改變檔案編碼。
 - Do not rewrite `.cmd` files as UTF-8.

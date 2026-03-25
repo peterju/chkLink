@@ -4,14 +4,73 @@
 
 它使用 Python 開發，再使用 nuitka 打包，最後使用 Inno Setup 製作安裝檔，再用 SignTool 使用自然人憑證加簽。
 
+## 先選文件
+
+- 一般使用者：請先看 [`doc/user-guide.md`](doc/user-guide.md)
+- 維護者 / 開發者：請繼續看這份 [`README.md`](README.md)
+- 交接中的 agent：請另外看 [`AGENTS.md`](AGENTS.md) 與 [`HANDOFF.md`](HANDOFF.md)
+
 ## 快速導覽
 
+- 一般使用者想安裝、掃描、看報告與更新：看 [`doc/user-guide.md`](doc/user-guide.md)
 - 想先知道這個工具做什麼：看「專案用途」與「掃描範圍定義」
-- 想直接跑起來：看「執行方式」
 - 想理解 GUI / CLI 掃描邏輯：看「GUI 重要邏輯」
 - 想調整掃描設定：看「設定檔說明」
 - 想改版本、編譯、打包與更新：看「版本號來源」與「正式發佈與升級流程」
-- 想公開 repo 或交接維護：看「公開 Repo 前的注意事項」、「已知限制」與根目錄 [AGENTS.md](AGENTS.md)
+- 想公開 repo 或交接維護：看「公開 Repo 前的注意事項」、「已知限制」、[AGENTS.md](AGENTS.md) 與 [HANDOFF.md](HANDOFF.md)
+
+## 文件導覽
+
+- [doc/user-guide.md](doc/user-guide.md)：給一般使用者的操作手冊，集中說明安裝、啟動、掃描、報告、更新與常見提示。
+- [README.md](README.md)：給維護者與開發者的總覽文件，集中說明架構、設定、建置、打包、更新、發佈與 winget 草稿脈絡。
+- [AGENTS.md](AGENTS.md)：給 agent 的穩定規則，特別適用於「使用額度已滿需更換 AI agent」或「context window 快滿需更換 session」時的交接入口，內容包含專案結構、編碼要求、發佈原則、修改守則與驗證清單。
+- [HANDOFF.md](HANDOFF.md)：給更換 agent / session 時快速續接目前工作用，集中記錄目前進度、這一輪已完成事項、外部 PR 狀態、決策紀錄與下一步交接重點。
+- [doc/github-release-guide.md](doc/github-release-guide.md)：說明如何建立 GitHub Release，以及 tag、Release、Local repo 與 GitHub repo 的同步觀念。
+- [doc/winget-release-guide.md](doc/winget-release-guide.md)：說明如何準備與提交 winget manifest、送 PR，以及常見 bot / checks / labels 的判讀方式。
+
+### 更換 Agent / Session 時怎麼交接
+
+下列情境都建議把 [AGENTS.md](AGENTS.md) 與 [HANDOFF.md](HANDOFF.md) 一起交給新的 agent：
+
+- AI 使用額度快滿或已滿，需要換另一個 agent 接手
+- context window 快滿，準備重開新 session
+- 同一專案要改由另一位維護者或另一套工具接手
+
+兩份文件的分工如下：
+
+- [AGENTS.md](AGENTS.md)：回答「這個專案長期固定要遵守什麼規則」
+- [HANDOFF.md](HANDOFF.md)：回答「這一輪目前做到哪裡，還剩什麼沒做」
+
+建議交接順序如下：
+
+1. 先更新 [HANDOFF.md](HANDOFF.md)，把剛完成的進度、外部 PR 狀態、已排除方案與下一步補齊。
+2. 若穩定規則、流程或文件入口有變，再同步更新 [AGENTS.md](AGENTS.md) 與 [README.md](README.md)。
+3. 開新 session 或換新 agent 時，先要求對方閱讀這兩份文件。
+4. 要求新 agent 先回報「目前狀態 / 未完成事項 / 下一步建議」，確認它有正確接住上下文，再開始動作。
+5. 新 agent 完成變更後，請主動回頭檢查 [README.md](README.md)、[AGENTS.md](AGENTS.md)、[HANDOFF.md](HANDOFF.md) 是否需要同步更新，再結束這一輪工作。
+
+若要更換 AI agent 或重開新 session，可直接參考下面這段提示詞；其中與版本、PR 或 git 狀態有關的條目，請依最新實際狀態調整：
+
+```text
+請先閱讀 AGENTS.md 與 HANDOFF.md。
+請不要重做已完成的分析，先根據 HANDOFF.md 確認目前進度，並遵守 AGENTS.md 的規則。
+
+特別注意：
+1. 專案根目錄就是目前這個 repo
+2. 請使用台灣繁體中文
+3. 請遵守檔案編碼與 CRLF 規則
+4. 先確認目前 git 狀態
+5. 主專案版本為 1.4.1
+6. 1.4.1 已完成安裝、掃描、靜默安裝與靜默卸載驗證
+7. winget 1.4.1 PR 已送出並通過 checks，舊的 1.4.0 PR 待關閉
+8. 主專案尚有未 push 的 commit
+9. 若 HANDOFF.md 有「決策紀錄」，請先讀完再提出替代方案
+
+請先回報目前狀態、未完成事項與下一步建議，再開始動作。
+完成變更後，請一併檢查 README.md、AGENTS.md、HANDOFF.md 是否需要同步更新。
+```
+
+這段提示詞的目的是讓新 agent 先看規則、先確認進度、避免重做分析，並在收尾時回頭檢查文件是否需要同步更新。若其中某些條目已過期，請先更新 [HANDOFF.md](HANDOFF.md) 或改寫提示詞，再交給新的 agent。
 
 ## 先看這裡
 
@@ -355,7 +414,7 @@ Inno Setup 語系檔安裝方式如下：
    - [Inno Setup Translations](https://jrsoftware.org/files/istrans/)
 3. 在頁面中找到 `Chinese (Traditional)`，下載 `ChineseTraditional.isl`。
 4. 將 `ChineseTraditional.isl` 放到 Inno Setup 安裝目錄下的 `Languages` 資料夾，例如：
-   - `C:\Program Files (x86)\Inno Setup 6\Languages\ChineseTraditional.isl`
+   - `%ProgramFiles(x86)%\Inno Setup 6\Languages\ChineseTraditional.isl`
 
 `build_setup.ps1` 會先檢查 `ISCC.exe` 與 `ChineseTraditional.isl` 是否存在，任一缺少都會直接停止。
 
