@@ -23,13 +23,27 @@
 
 ## chkLink 目前採用的 manifest 結構
 
-以 [`winget\PeterJu\chkLink\1.4.1`](../winget/PeterJu/chkLink/1.4.1) 為例，目前採三個檔案：
+對 `chkLink` 目前這套流程來說，winget 需要我們提供三份 manifest 檔案。
 
-- [`PeterJu.chkLink.yaml`](../winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.yaml)
-- [`PeterJu.chkLink.installer.yaml`](../winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.installer.yaml)
-- [`PeterJu.chkLink.locale.zh-TW.yaml`](../winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.locale.zh-TW.yaml)
+以 [chkLink/winget/PeterJu/chkLink/1.4.1](chkLink/winget/PeterJu/chkLink/1.4.1) 為例，目前採三個檔案：
+
+- [chkLink/winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.yaml](chkLink/winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.yaml)
+- [chkLink/winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.installer.yaml](chkLink/winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.installer.yaml)
+- [chkLink/winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.locale.zh-TW.yaml](chkLink/winget/PeterJu/chkLink/1.4.1/PeterJu.chkLink.locale.zh-TW.yaml)
 
 這代表目前是「version / installer / locale」拆檔模式。
+
+實務上建議這樣理解流程：
+
+1. 先在主專案自己的 `winget\PeterJu\chkLink\1.4.1\` 路徑建立這三個檔案。
+2. 完成 fork `microsoft/winget-pkgs`、把 fork clone 到本機、在 fork 開新分支。
+3. 之後在 fork 的專案建立正式提交路徑：
+
+```text
+manifests\p\PeterJu\chkLink\1.4.1\
+```
+
+4. 再把前面準備好的三個 manifest 檔案放進這個目錄。
 
 Microsoft Learn 目前仍說明：
 
@@ -38,6 +52,8 @@ Microsoft Learn 目前仍說明：
 - 多檔 manifest 的最少組成通常是 `version`、`default locale`、`installer` 三檔，其他 locale 再另外追加
 
 `chkLink` 目前採多檔模式，這和官方目前建議的完整 metadata 方向一致。
+
+先把這一段的關係記住，後面會比較好讀：主專案 `winget\...` 內的是草稿來源，`winget-pkgs` fork 內的 `manifests\...` 才是正式提交位置。
 
 ## 發佈前置條件
 
@@ -52,12 +68,7 @@ Microsoft Learn 目前仍說明：
 
 ## 為什麼一定要先 fork
 
-因為 `microsoft/winget-pkgs` 是社群共用倉庫，你通常沒有直接寫入權限。標準流程是：
-
-1. fork `microsoft/winget-pkgs` 到自己的 GitHub 帳號
-2. 把 fork clone 到本機
-3. 在 fork 的分支上新增或更新 manifest
-4. 從 fork 對上游 `microsoft/winget-pkgs` 發 PR
+因為 `microsoft/winget-pkgs` 是社群共用倉庫，你通常沒有直接寫入權限，所以標準流程一定是先 fork、再 clone、再開分支，最後從自己的 fork 對上游送 PR。
 
 對 `chkLink` 而言，交接文件記錄的本機 fork 工作目錄是：
 
@@ -69,9 +80,17 @@ Microsoft Learn 目前仍說明：
 
 如果 fork 很久沒更新，先同步再開新版分支，否則容易一開始就帶入不必要差異。
 
+如果你不想把整個 `winget-pkgs` 都 checkout 下來，也可以搭配稀疏簽出。對 `chkLink` 這個專案來說，比較建議把範圍設在整個套件目錄，而不是只鎖某一個版本號，例如：
+
+```powershell
+git sparse-checkout set manifests/p/PeterJu/chkLink
+```
+
+這樣後續從 `1.4.1` 往 `1.4.2`、`1.4.3` 升版時，不需要每次再改一次 sparse-checkout 設定。
+
 ### 2. 建立本次版本分支
 
-分支名稱通常可讀即可，例如：
+分支名稱建議帶上套件名與版本號，方便後續追蹤這個分支是在處理哪一個套件、哪一個版本。例如：
 
 ```text
 add-peterju-chklink-1.4.1
@@ -98,6 +117,13 @@ manifests\p\PeterJu\chkLink\1.4.1\
 - `InstallerType`
 - 靜默安裝 / 靜默卸載參數
 - locale 描述文字
+
+對 `chkLink` 目前的做法來說，也建議另外確認：
+
+- `PackageName` 維持為 `chkLink`
+- installer 仍是 `Inno Setup`
+- 架構仍是 `x64`
+- PR 內描述的使用者資料路徑仍是 `%LOCALAPPDATA%\chkLink\data\`
 
 若要依官方工具流程建立 manifest，也可以考慮：
 
@@ -143,7 +169,7 @@ winget install --manifest manifests\p\PeterJu\chkLink\1.4.1
 
 若 `winget install --manifest ...` 顯示已成功驗證安裝程式哈希、已啟動安裝，且最後顯示 `已成功安裝`，就代表這一步已完成。
 
-## PR 標題大致長什麼樣子
+## PR 標題與內容範例
 
 從 `winget-pkgs` 公開 PR 列表可看到，常見標題格式有：
 
@@ -153,24 +179,6 @@ winget install --manifest manifests\p\PeterJu\chkLink\1.4.1
 對已存在的 `chkLink` 套件來說，通常會落在「New version」這一類。
 
 即使你用的是 `wingetcreate` 或其他工具，自動產生的 PR 標題也多半會接近這個格式。
-
-另外，`winget-pkgs` 公開 PR 列表目前常見的 label 包括：
-
-- `New-Manifest`
-- `New-Package`
-- `Azure-Pipeline-Passed`
-- `Validation-Completed`
-- `Needs-Author-Feedback`
-- `Error-Hash-Mismatch`
-- `Validation-Installation-Error`
-
-但要注意：
-
-- label 是由 repo 流程與 bot 自動加上的結果，不是你在 PR 表單中手動填的固定欄位
-- 新 package 與既有 package 更新，看到的 label 組合可能不同
-- 官方網站 UI 與 label 細節可能會調整，所以教學應以「理解其意義」為主，不要背單一畫面長相
-
-## `chkLink` 實際使用過的 PR 內容範例
 
 以下內容整理自 `microsoft/winget-pkgs` 的 `#351979`，可作為後續版本提交時的實際參考。
 
@@ -234,6 +242,22 @@ New version: PeterJu.chkLink 1.4.1
 - Uninstall removes the installation directory cleanly while preserving user-owned runtime files
 ```
 
+另外，`winget-pkgs` 公開 PR 列表目前常見的 label 包括：
+
+- `New-Manifest`
+- `New-Package`
+- `Azure-Pipeline-Passed`
+- `Validation-Completed`
+- `Needs-Author-Feedback`
+- `Error-Hash-Mismatch`
+- `Validation-Installation-Error`
+
+但要注意：
+
+- label 是由 repo 流程與 bot 自動加上的結果，不是你在 PR 表單中手動填的固定欄位
+- 新 package 與既有 package 更新，看到的 label 組合可能不同
+- 官方網站 UI 與 label 細節可能會調整，所以教學應以「理解其意義」為主，不要背單一畫面長相
+
 ## PR checklist 怎麼勾
 
 `winget-pkgs` PR 內文中的 checklist，不是貼上範本後就直接全部打勾，而是要依你實際完成的檢查結果逐項勾選。
@@ -258,7 +282,7 @@ New version: PeterJu.chkLink 1.4.1
   - 要真的跑過 `winget validate --manifest ...` 並成功後才能勾
 - `Have you tested your manifest locally with winget install --manifest <path>?`
   - 要真的跑過 `winget install --manifest ...` 並成功後才能勾
-- `Does your manifest conform to the 1.12 schema?`
+- `Does your manifest conform to the current schema requirement?`
   - 要確認 schema 符合目前 repo 要求後才能勾；通常搭配 `winget validate` 成功一起判斷
 
 ## `1.4.1` 這次可以怎麼勾
@@ -273,7 +297,7 @@ New version: PeterJu.chkLink 1.4.1
   - 可勾，因為 `winget validate --manifest manifests\p\PeterJu\chkLink\1.4.1` 已成功
 - `Have you tested your manifest locally with winget install --manifest <path>?`
   - 可勾，因為 `winget install --manifest manifests\p\PeterJu\chkLink\1.4.1` 已成功安裝
-- `Does your manifest conform to the 1.12 schema?`
+- `Does your manifest conform to the current schema requirement?`
   - 可勾，因為本機驗證已通過，且 PR 模板要求的 schema 也已符合
 - `Have you signed the Contributor License Agreement ...?`
   - 若你已確認 CLA 完成，就可勾
