@@ -3,8 +3,6 @@
 /installer/
 /release/
 /out/
-/data/config.yaml
-/data/visited_link.yaml
 .build-cache/
 .vscode/
 nuitka-crash-report.xml
