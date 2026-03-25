@@ -122,6 +122,27 @@ winget install --manifest <manifest 資料夾或檔案路徑>
 - `winget validate` 可先抓出 schema 或欄位問題
 - `winget install --manifest` 可先檢查安裝器、silent switch、下載與安裝流程是否真的可行
 
+如果你第一次在本機執行 `winget install --manifest ...`，而 `winget` 提示 `LocalManifestFiles` 尚未啟用，請先以系統管理員身分開啟 PowerShell，執行：
+
+```powershell
+winget settings --enable LocalManifestFiles
+```
+
+啟用後，再重新執行：
+
+```powershell
+winget install --manifest <manifest 資料夾或檔案路徑>
+```
+
+以 `chkLink` 這次 `1.4.1` 為例，實際可用的指令是：
+
+```powershell
+winget validate --manifest manifests\p\PeterJu\chkLink\1.4.1
+winget install --manifest manifests\p\PeterJu\chkLink\1.4.1
+```
+
+若 `winget install --manifest ...` 顯示已成功驗證安裝程式哈希、已啟動安裝，且最後顯示 `已成功安裝`，就代表這一步已完成。
+
 ## PR 標題大致長什麼樣子
 
 從 `winget-pkgs` 公開 PR 列表可看到，常見標題格式有：
@@ -213,7 +234,71 @@ New version: PeterJu.chkLink 1.4.1
 - Uninstall removes the installation directory cleanly while preserving user-owned runtime files
 ```
 
+## PR checklist 怎麼勾
+
+`winget-pkgs` PR 內文中的 checklist，不是貼上範本後就直接全部打勾，而是要依你實際完成的檢查結果逐項勾選。
+
+原則很簡單：
+
+- 做過，且結果成立，才能勾
+- 沒做，就不要勾
+- 不適用，就保留空白或依實際情況說明
+
+以常見欄位來說，可這樣判斷：
+
+- `Have you signed the Contributor License Agreement ...?`
+  - 確認 CLA 已完成後才能勾
+- `Is there a linked Issue?`
+  - 若這次沒有對應 issue，就不要勾
+- `Have you checked that there aren't other open pull requests ...?`
+  - 確認沒有同版本重複 PR 後才能勾
+- `This PR only modifies one (1) manifest`
+  - 用 `git diff --name-only origin/master...HEAD` 確認只改這一組 manifest 後才能勾
+- `Have you validated your manifest locally with winget validate --manifest <path>?`
+  - 要真的跑過 `winget validate --manifest ...` 並成功後才能勾
+- `Have you tested your manifest locally with winget install --manifest <path>?`
+  - 要真的跑過 `winget install --manifest ...` 並成功後才能勾
+- `Does your manifest conform to the 1.12 schema?`
+  - 要確認 schema 符合目前 repo 要求後才能勾；通常搭配 `winget validate` 成功一起判斷
+
+## `1.4.1` 這次可以怎麼勾
+
+以 `PeterJu.chkLink 1.4.1` 這次實際檢查結果來看：
+
+- `Have you checked that there aren't other open pull requests ...?`
+  - 可勾，因為已確認同版本沒有另一個未關閉 PR
+- `This PR only modifies one (1) manifest`
+  - 可勾，因為 `git diff --name-only origin/master...HEAD` 只包含 `1.4.1` 這一組 manifest
+- `Have you validated your manifest locally with winget validate --manifest <path>?`
+  - 可勾，因為 `winget validate --manifest manifests\p\PeterJu\chkLink\1.4.1` 已成功
+- `Have you tested your manifest locally with winget install --manifest <path>?`
+  - 可勾，因為 `winget install --manifest manifests\p\PeterJu\chkLink\1.4.1` 已成功安裝
+- `Does your manifest conform to the 1.12 schema?`
+  - 可勾，因為本機驗證已通過，且 PR 模板要求的 schema 也已符合
+- `Have you signed the Contributor License Agreement ...?`
+  - 若你已確認 CLA 完成，就可勾
+- `Is there a linked Issue?`
+  - 若這次沒有 issue，就維持不勾
+
 ## checks 與 bot 常見訊號
+
+在 `winget-pkgs` 的實際流程中，通常不是「純機器審核」或「純人工審核」二選一，而是：
+
+1. 先由機器做初步驗證
+   - schema / manifest 檢查
+   - 下載測試
+   - hash 驗證
+   - 安裝測試
+2. 再由人工 reviewer 做最後判讀
+   - 看 PR 說明是否清楚
+   - 看 manifest 與安裝行為是否合理
+   - 決定是否需要補充資訊或進一步修正
+
+所以：
+
+- checklist 比較像作者的自我檢查清單與 reviewer 的參考資訊
+- 真正的審核流程仍會同時看 bot / pipeline 結果與人工 reviewer 的判斷
+- 就算 checks 全通過，也不代表一定會立刻 merge
 
 ### CLA
 
@@ -223,6 +308,21 @@ New version: PeterJu.chkLink 1.4.1
 
 - 需要你按指示完成一次 CLA
 - 完成後，後續同帳號在 Microsoft 其他 repo 通常不必重簽
+
+若你想確認自己的 CLA 是否已完成，可用這幾種方式：
+
+1. 直接看目前 PR 頁面
+   - 若 CLA 尚未完成，通常會有明顯的 bot 留言或檢查提示要求你處理
+   - 若 PR 已正常往下跑驗證流程，通常代表 CLA 沒有卡住
+2. 到 Microsoft CLA 網站確認
+   - https://cla.opensource.microsoft.com/microsoft/winget-pkgs
+3. 用 GitHub CLI 查看 PR 狀態
+
+```powershell
+& 'C:\Program Files\GitHub CLI\gh.exe' pr view <PR 編號> --repo microsoft/winget-pkgs
+```
+
+實務上，如果你的 PR 已沒有 CLA bot 阻擋，且 checks 已正常執行，通常就可以視為 CLA 已完成。
 
 ### Azure-Pipeline-Passed
 
