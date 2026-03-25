@@ -4,6 +4,10 @@
 
 - This is a Windows website link-checking project with two entry points.
 - 這是一個 Windows 網站失效連結掃描專案，提供兩個入口。
+- For current progress, in-flight tasks, and handoff status, read [HANDOFF.md](HANDOFF.md) first.
+- 若要了解目前工作進度、進行中的任務與交接狀態，請先看 [HANDOFF.md](HANDOFF.md)。
+- If `HANDOFF.md` contains a `決策紀錄` section, read it before proposing alternative implementations.
+- 若 [HANDOFF.md](HANDOFF.md) 內有 `決策紀錄` 章節，請先讀完再提出替代方案，避免重複討論已排除的路線。
 - GUI: [chklink.py](chklink.py)
 - CLI: [chklink_cli.py](chklink_cli.py)
 - The main product is the GUI. The CLI is intentionally low-profile and is mainly for automation, scheduling, and debugging.
