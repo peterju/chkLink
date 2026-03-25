@@ -24,7 +24,7 @@
 - [doc/user-guide.md](doc/user-guide.md)：給一般使用者的操作手冊，集中說明安裝、啟動、掃描、報告、更新與常見提示。
 - [README.md](README.md)：給維護者與開發者的總覽文件，集中說明架構、設定、建置、打包、更新、發佈與 winget 草稿脈絡。
 - [AGENTS.md](AGENTS.md)：給 agent 的穩定規則，特別適用於「使用額度已滿需更換 AI agent」或「context window 快滿需更換 session」時的交接入口，內容包含專案結構、編碼要求、發佈原則、修改守則與驗證清單。
-- [HANDOFF.md](HANDOFF.md)：給更換 agent / session 時快速續接目前工作用，集中記錄目前進度、這一輪已完成事項、外部 PR 狀態、決策紀錄與下一步交接重點。
+- [HANDOFF.md](HANDOFF.md)：給更換 agent / session 時快速續接目前工作用的動態交接檔，集中記錄目前進度、這一輪已完成事項、外部 PR 狀態、決策紀錄與下一步交接重點，應隨工作進度持續更新。
 - [doc/github-release-guide.md](doc/github-release-guide.md)：說明如何建立 GitHub Release，以及 tag、Release、Local repo 與 GitHub repo 的同步觀念。
 - [doc/winget-release-guide.md](doc/winget-release-guide.md)：說明如何準備與提交 winget manifest、送 PR，以及常見 bot / checks / labels 的判讀方式。
 
