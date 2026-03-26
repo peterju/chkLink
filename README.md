@@ -13,6 +13,7 @@
 ## 快速導覽
 
 - 一般使用者想安裝、掃描、看報告與更新：看 [`doc/user-guide.md`](doc/user-guide.md)
+- 一般使用者想用 winget 安裝、升級或移除：看 [`doc/user-guide.md`](doc/user-guide.md) 的 winget 說明
 - 想先知道這個工具做什麼：看「專案用途」與「掃描範圍定義」
 - 想理解 GUI / CLI 掃描邏輯：看「GUI 重要邏輯」
 - 想調整掃描設定：看「設定檔說明」
@@ -79,7 +80,16 @@
 1. 主產品是 GUI，CLI 是低曝光輔助入口。
 2. 掃描核心共用在 [chklink_core.py](chklink_core.py)，不要分別在 GUI / CLI 內重複改邏輯。
 3. 執行中的版本號唯一來源是 [chklink_config.py](chklink_config.py) 的 `DEFAULT_APP_VERSION`。
-4. 組織內部更新來源與 GitHub Release 是兩條分開的發佈線，不要把 `make_github_release.cmd` 產物誤當成 GUI 預設更新來源。
+4. 組織內部更新來源、GitHub Release 對外下載、與 winget 對外安裝是三條不同用途的發佈線，不要把 `make_github_release.cmd` 產物誤當成 GUI 預設更新來源。
+
+## 對外安裝入口
+
+目前一般使用者可透過下列兩種公開方式安裝：
+
+- GitHub Release：手動下載 `chklink-<version>-win-x64-setup.exe`
+- winget：執行 `winget install PeterJu.chkLink`
+
+兩者取得的本質上都是同一版正式安裝程式；差別只在取得入口不同。
 
 ## 專案用途
 
@@ -145,6 +155,11 @@
 - `update.cmd` 是程式持有的更新輔助檔，不是使用者設定檔。
 
 ## 執行方式
+
+一般使用者安裝方式：
+
+- Installer：下載 GitHub Release 的 `chklink-<version>-win-x64-setup.exe`
+- winget：執行 `winget install PeterJu.chkLink`
 
 GUI：
 

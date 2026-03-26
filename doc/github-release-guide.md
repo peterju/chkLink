@@ -156,6 +156,34 @@ v1.4.1
 請參考 `chklink-1.4.1-SHA256.txt`。
 ```
 
+## 已發佈的 Release 說明可不可以修改
+
+可以。
+
+如果你是這個 GitHub repo 的維護者，已經發佈出去的 GitHub Release 仍然可以再編輯：
+
+- Release title
+- Release body
+- 是否標記為 latest release
+- 是否標記為 pre-release
+
+這代表像 `v1.4.1` 這種已經發佈的 Release，若只是想補充說明文字，例如：
+
+- 補上 `winget install PeterJu.chkLink`
+- 補上 `winget upgrade PeterJu.chkLink`
+- 補充安裝入口、使用情境或已上架 winget 的說明
+
+這些都可以直接修改 Release 文案，不需要重發版本。
+
+但要明確區分「改文案」和「改產物」：
+
+- 可以改：Release 說明、標題、補充連結、下載指引
+- 不建議改：在同一個 `v1.4.1` 下面偷偷替換成不同內容的安裝檔
+
+原因是版本號一旦公開，對外就應對應固定產物。若你改的是實際安裝內容，而不是單純補充說明，正確做法應是發新版本，例如 `1.4.2`。
+
+對 `chkLink` 目前這個情境來說，若你只是想在 `v1.4.1` Release 補一段「現在也可透過 winget 安裝」，這是合理且建議的修改。
+
 ## 建完 Release 後，本機要怎麼同步
 
 如果 tag 是在 GitHub 網站上建立的，建議至少執行：

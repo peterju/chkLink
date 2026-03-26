@@ -24,11 +24,58 @@
 
 - `chklink-<version>-win-x64-setup.exe`
 
+如果你習慣用 Windows 套件管理工具，也可以直接使用 `winget`：
+
+- `winget install PeterJu.chkLink`
+
 安裝完成後：
 
 - GUI 會是主要入口
 - CLI 會一併安裝，但通常不需要手動使用
 - 使用者自己的設定與快取會放在你的 Windows 使用者資料夾裡
+
+## 用 winget 安裝
+
+如果你的電腦已經有 Windows Package Manager，也就是 `winget`，可直接用下面指令安裝：
+
+```powershell
+winget install PeterJu.chkLink
+```
+
+如果你想先確認套件資訊，可先查詢：
+
+```powershell
+winget show PeterJu.chkLink
+```
+
+如果你只記得產品名稱，也可以搜尋：
+
+```powershell
+winget search chkLink
+```
+
+安裝完成後：
+
+- `chkLink` 仍然是以 GUI 為主要使用入口
+- winget 下載的仍是正式安裝程式，不是單一免安裝執行檔
+- 使用者設定與快取仍會放在 `%LOCALAPPDATA%\chkLink\data\`
+
+### 什麼情況適合用 winget
+
+下列情況特別適合：
+
+- 你習慣用指令安裝 Windows 軟體
+- 你想在多台電腦上用同一套方式部署
+- 你需要把安裝流程寫進批次檔、自動化腳本或 IT 佈署流程
+
+### 安裝失敗時先檢查什麼
+
+如果 `winget install PeterJu.chkLink` 沒成功，先檢查：
+
+- 你的電腦是否已安裝 `winget`
+- 是否能正常連到 GitHub Release 下載安裝檔
+- 是否有公司代理、白名單或防毒政策擋下載或安裝
+- 是否有 SmartScreen 或企業端應用程式控制政策攔截安裝程式
 
 ## 第一次使用
 
@@ -46,7 +93,7 @@
 
 - `C:\Users\你的帳號\AppData\Local\chkLink\data\`
 
-如果你看到文件寫 `%LOCALAPPDATA%\chkLink\data\`，它指的就是這個位置。  
+如果你看到文件寫 `%LOCALAPPDATA%\chkLink\data\`，它指的就是這個位置。
 例如你的 Windows 帳號如果是 `peter`，實際路徑通常會像這樣：
 
 - `C:\Users\peter\AppData\Local\chkLink\data\`
@@ -184,7 +231,7 @@
 
 - `C:\Users\你的帳號\AppData\Local\chkLink\data\visited_link.yaml`
 
-它的用途是把先前檢查過、而且回應正常的連結記錄下來，避免之後又對同一批正常網址重複偵測，進而增加掃描時間。  
+它的用途是把先前檢查過、而且回應正常的連結記錄下來，避免之後又對同一批正常網址重複偵測，進而增加掃描時間。
 但這個效果有一個前提：
 
 - `網址掃描` 分頁中的 `跳過已檢查過的網址` 必須保持勾選
@@ -205,6 +252,39 @@
 - 再由安裝程式覆蓋安裝
 - `config.yaml` 與 `visited_link.yaml` 會保留
 
+如果你是用 `winget` 安裝，也可以直接用 `winget` 更新：
+
+```powershell
+winget upgrade PeterJu.chkLink
+```
+
+如果你想先查看目前有哪些可升級套件，也可以用：
+
+```powershell
+winget upgrade
+```
+
+如果 `winget upgrade PeterJu.chkLink` 顯示沒有可用更新，通常代表：
+
+- 你已經是最新版本
+- 或 winget 公開索引尚未刷新到你要的版本
+
+這時可先用 `winget show PeterJu.chkLink` 確認目前公開可見版本。
+
+## 用 winget 移除
+
+如果你是透過 `winget` 管理安裝，也可以用下列指令移除：
+
+```powershell
+winget uninstall PeterJu.chkLink
+```
+
+移除程式時：
+
+- 安裝目錄會依 installer / uninstall 流程清理
+- 使用者自己的設定與快取通常會保留在 `%LOCALAPPDATA%\chkLink\data\`
+- 若你希望完全清除個人設定，需再手動刪除該資料夾
+
 ## 常見提示
 
 ### SmartScreen 或 Smart App Control 提示
@@ -224,6 +304,15 @@
    `C:\Users\你的帳號\AppData\Local\chkLink\data\`
 
 如果看不到 `AppData`，通常是因為它是隱藏資料夾，這是 Windows 的正常行為。
+
+### 我應該用 GUI 內建更新，還是用 winget 更新
+
+兩種方式都可以，差別在使用習慣：
+
+- 一般使用者若平常直接從桌面捷徑開啟程式，用 GUI 內建的 `檢查更新` 就夠了
+- 如果你平常就是用 `winget` 管理軟體，直接用 `winget upgrade PeterJu.chkLink` 會比較一致
+
+兩種方式最終都會走 installer 覆蓋安裝，所以都會保留 `%LOCALAPPDATA%\chkLink\data\` 下的使用者資料。
 
 ## 什麼情況需要找維護者
 

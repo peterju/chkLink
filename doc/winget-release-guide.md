@@ -318,6 +318,38 @@ New version: PeterJu.chkLink 1.4.1
    - 看 manifest 與安裝行為是否合理
    - 決定是否需要補充資訊或進一步修正
 
+## PR 合併後要做什麼
+
+PR 合併不代表使用者當下立刻就一定查得到，實務上建議再補做一次公開索引確認。
+
+以 `1.4.1` 這次來說，建議合併後依序確認：
+
+```powershell
+winget search chkLink
+winget show PeterJu.chkLink
+winget install PeterJu.chkLink
+```
+
+這三步分別是在確認：
+
+- 套件是否已出現在公開索引
+- 公開 metadata 是否正確，例如版本、描述、InstallerUrl、SHA256
+- 一般使用者是否真的可以直接安裝
+
+若 `winget search` 或 `winget show` 還查不到，常見原因是公開索引尚未刷新完成。這種情況通常先等一段時間再重試，不要立刻重送 PR。
+
+## `1.4.1` 這次的最終結果
+
+`PeterJu.chkLink 1.4.1` 這次的狀態已完成到下列程度：
+
+- PR `#351979` 已合併到 `microsoft/winget-pkgs:master`
+- `Validation` 與 `Publish` pipeline 都已通過
+- reviewer 已核准
+- `winget search chkLink` 已可查到 `PeterJu.chkLink 1.4.1`
+- `winget show PeterJu.chkLink` 已可查到安裝資訊與公開描述
+
+這代表後續同類型版本提交時，可以把「PR 合併後再做一次公開索引與安裝驗證」視為固定收尾步驟。
+
 所以：
 
 - checklist 比較像作者的自我檢查清單與 reviewer 的參考資訊
